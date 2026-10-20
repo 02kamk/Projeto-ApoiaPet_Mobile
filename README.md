@@ -1,3 +1,5 @@
+> Atualizacao de escopo: a solicitacao mais recente inclui doacoes de alimentacao no demonstrativo local, com Pix e cartao simulados. Consulte [docs/doacoes.md](docs/doacoes.md). As restricoes antigas de adocao exclusiva foram substituidas.
+
 ﻿# ApoiaPet
 
 Demonstração mobile de adoção responsável em React Native + Expo + TypeScript.
@@ -20,7 +22,7 @@ Leia o QR com um Expo Go compatível com o SDK instalado. Android: `npm run andr
 - Análise humana simulada, complementação com histórico, aprovação, desistência e conclusão que encerra outras candidaturas ativas do pet.
 - Nenhuma autenticação real, token, persistência ou autorização no backend. A conta demo e o acesso administrativo são simulações. Reiniciar perde tudo. Não utilizar dados pessoais reais.
 - Firebase Authentication, Firestore, Storage e regras de segurança ainda não integrados. Não guardar senhas em documentos ou chaves administrativas no aplicativo.
-- Sem doações, pagamentos, chat, classificação de aptidão ou aprovação automática.
+- Doações de alimentação com Pix e cartão simulados; sem pagamentos reais, chat, classificação de aptidão ou aprovação automática.
 - Ilustrações representadas por emojis; ícone final de pata e coração e fotos ainda pendentes.
 
 ## Organização

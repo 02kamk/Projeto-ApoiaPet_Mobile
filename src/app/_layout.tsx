@@ -1,3 +1,4 @@
 import { Stack } from 'expo-router';
 import { DemoProvider } from '../DemoScreen';
-export default function Layout() { return <DemoProvider><Stack screenOptions={{ headerShown: false }} /></DemoProvider>; }
+import { DonationsProvider } from '../donations/context';
+export default function Layout() { return <DemoProvider><DonationsProvider><Stack screenOptions={{ headerShown: false }} /></DonationsProvider></DemoProvider>; }

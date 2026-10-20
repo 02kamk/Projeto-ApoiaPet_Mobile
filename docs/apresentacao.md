@@ -1,3 +1,5 @@
+> Documento anterior a ampliacao para doacoes. A decisao atual esta em [doacoes.md](doacoes.md) e substitui as indicacoes de adocao exclusiva abaixo.
+
 ﻿# Roteiro de apresentação — 5 a 7 minutos
 
 1. 0:00–0:40 — ApoiaPet: adoção responsável de pets. Nome e conceito de ícone: pata e coração. Equipe e cliente ainda a confirmar, sem inventar dados.

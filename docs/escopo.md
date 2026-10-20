@@ -1,3 +1,5 @@
+> Documento anterior a ampliacao para doacoes. A decisao atual esta em [doacoes.md](doacoes.md) e substitui as indicacoes de adocao exclusiva abaixo.
+
 ﻿# Escopo atual
 
 MVP exclusivamente de adoção responsável, abrangendo gatos, cães e outros pets. Doações são evolução futura.

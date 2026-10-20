@@ -3,7 +3,7 @@ export const terminal: Status[] = ['Não aprovada', 'Desistida', 'Adoção concl
 export const initial: State = { pets: [
   { id: 'luna', name: 'Luna', species: 'Gato', age: '2 anos', size: 'Pequeno', description: 'Curiosa e tranquila. Animal fictício.', care: 'Ambiente protegido e adaptação gradual.', availability: 'Disponível', archived: false },
   { id: 'thor', name: 'Thor', species: 'Cão', age: '3 anos', size: 'Grande', description: 'Companheiro e brincalhão. Animal fictício.', care: 'Passeios e atividades diárias.', availability: 'Disponível', archived: false },
-  { id: 'pipoca', name: 'Pipoca', species: 'Outro', age: '1 ano', size: '', description: 'Coelho sociável. Animal fictício.', care: 'Espaço seguro, alimentação e cuidados próprios da espécie.', availability: 'Disponível', archived: false },
+  { id: 'pipoca', name: 'Pipoca', species: 'Outro', otherSpecies: 'Coelho', age: '1 ano', size: '', description: 'Coelho sociável. Animal fictício.', care: 'Espaço seguro, alimentação e cuidados próprios da espécie.', availability: 'Disponível', archived: false },
 ], applications: [] };
 export const emptyAnswers: Answers = { name: '', phone: '', city: '', neighborhood: '', housing: '', agreement: '', safety: '', routine: '', animals: '', motivation: '', commitment: false, consent: false };
 export function validate(a: Answers): string | undefined {
@@ -37,7 +37,12 @@ export function transition(s: State, id: string, next: Status, admin: boolean, m
     return status ? { ...a, status, history: [...a.history, { at, author: admin ? 'Abrigo (simulação)' : 'Candidato', message: status === 'Encerrada por adoção' ? 'Pet adotado em outra candidatura. Não representa avaliação de aptidão.' : `${status}${message.trim() ? ': ' + message.trim() : ''}` }] } : a;
   }) };
 }
+export function petSpeciesLabel(pet: Pet): string {
+  return pet.species === 'Outro' ? pet.otherSpecies?.trim() || 'Outro animal' : pet.species;
+}
 export function savePet(s: State, pet: Pet): State {
+  if (pet.species === 'Outro' && !pet.otherSpecies?.trim()) throw Error('Informe qual é o animal ao selecionar Outro.');
+  pet = { ...pet, otherSpecies: pet.species === 'Outro' ? pet.otherSpecies!.trim() : undefined };
   if (![pet.name, pet.age, pet.description, pet.care].every(v => v.trim())) throw Error('Preencha nome, idade, descrição e cuidados.');
   const old = s.pets.find(p => p.id === pet.id);
   if (old?.availability === 'Adotado' && pet.availability !== 'Adotado') throw Error('Adoção concluída deve ser preservada.');
@@ -46,4 +51,9 @@ export function savePet(s: State, pet: Pet): State {
 export function removePet(s: State, id: string): State {
   if (s.applications.some(a => a.petId === id)) throw Error('Este pet tem histórico. Use arquivar.');
   return { ...s, pets: s.pets.filter(p => p.id !== id) };
+}
+
+// Preserve adopted pets in history and administration, outside adoption listings.
+export function adoptionCatalog(pets: Pet[], species: Pet['species'] | 'Todos' = 'Todos', size = 'Todos'): Pet[] {
+  return pets.filter(p => !p.archived && p.availability !== 'Adotado' && (species === 'Todos' || p.species === species) && (size === 'Todos' || p.size === size));
 }

@@ -1,3 +1,5 @@
+> Documento anterior a ampliacao para doacoes. A decisao atual esta em [doacoes.md](doacoes.md) e substitui as indicacoes de adocao exclusiva abaixo.
+
 ﻿# Backlog priorizado
 
 ## P0 — demonstração
