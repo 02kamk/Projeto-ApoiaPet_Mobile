@@ -1,57 +1,53 @@
-> Atualizacao de escopo: a solicitacao mais recente inclui doacoes de alimentacao no demonstrativo local, com Pix e cartao simulados. Consulte [docs/doacoes.md](docs/doacoes.md). As restricoes antigas de adocao exclusiva foram substituidas.
+# ApoiaPet
 
-﻿# ApoiaPet
+Aplicativo Expo + React Native + TypeScript para adoção responsável e apoio a ONGs.
 
-Demonstração mobile de adoção responsável em React Native + Expo + TypeScript.
+## Funcionalidades
 
-## Executar
+- Cadastro e login com Firebase Authentication; nome completo, telefone brasileiro e endereço por CEP.
+- Senha com 10 caracteres ou mais, letra maiúscula, minúscula, número e caractere especial.
+- Catálogo por município com opção de ver todo o Brasil, fotos, vacinas selecionáveis e testes com resultados (incluindo FIV/FeLV para gatos).
+- Candidatura com fotos privadas do ambiente, análise humana e histórico por usuário/ONG.
+- Chat após aprovação, agenda mensal de retiradas e avisos internos para os próximos sete dias.
+- Reserva do animal ao agendar a retirada; conclusão da adoção após confirmação pela ONG.
+- Histórico de doações com identificação do doador, totais reais separados das simulações.
+- Integração de código com Mercado Pago: OAuth da ONG, Checkout Pro e confirmação por webhook.
 
-Requer Node.js e npm. No Windows com scripts PowerShell bloqueados, utilize npm.cmd/npx.cmd.
+## Configurar e executar
 
-```sh
-npm ci
-npm start
+Para testar agora sem faturamento, use [o guia dos emuladores locais](docs/teste-local.md): `npm.cmd run emulators` e, em outro terminal, `npm.cmd run web -- --localhost --port 8081 --clear`.
+
+O proprietário ainda precisa criar o projeto Firebase, publicar funções/regras e configurar as contas de pagamento. O clone não contém credenciais nem serviços de produção já ativos.
+
+Siga [a configuração completa do Firebase](docs/firebase.md) e [o guia do Mercado Pago](docs/mercado-pago.md). Copie `.env.example` para `.env.local` e configure também o backend em `functions/` conforme os guias.
+
+```powershell
+npm.cmd ci
+npm.cmd --prefix functions ci
+npm.cmd run web -- --localhost --port 8081
 ```
 
-Leia o QR com um Expo Go compatível com o SDK instalado. Android: `npm run android` com emulador configurado. Não foi testado em celular nesta sessão.
-
-## Estado real
-
-- Boas-vindas, início, catálogo com filtros, perfil, formulário em três etapas, revisão, candidaturas, histórico, painel e editor de pets.
-- CRUD em memória: excluir pet sem vínculos; arquivar pet com histórico.
-- Análise humana simulada, complementação com histórico, aprovação, desistência e conclusão que encerra outras candidaturas ativas do pet.
-- Nenhuma autenticação real, token, persistência ou autorização no backend. A conta demo e o acesso administrativo são simulações. Reiniciar perde tudo. Não utilizar dados pessoais reais.
-- Firebase Authentication, Firestore, Storage e regras de segurança ainda não integrados. Não guardar senhas em documentos ou chaves administrativas no aplicativo.
-- Doações de alimentação com Pix e cartão simulados; sem pagamentos reais, chat, classificação de aptidão ou aprovação automática.
-- Ilustrações representadas por emojis; ícone final de pata e coração e fotos ainda pendentes.
-
-## Organização
-
-`src/DemoScreen.tsx`: navegação e composição das telas. `src/ui.tsx`: componentes e identidade visual. `src/types.ts`: entidades. `src/domain.ts`: validação e regras locais. Próxima refatoração: extrair cada tela para arquivo próprio antes da integração Firebase.
+No Windows com scripts PowerShell bloqueados, utilize `npm.cmd` e `npx.cmd`. Para Android/iOS, use um Expo Go compatível ou uma development build.
 
 ## Verificação
 
-```sh
-npx tsc --noEmit
-npx expo install --check
-npx expo-doctor
+```powershell
+npm.cmd run typecheck
+npm.cmd run lint
+npm.cmd run check:backend
+npm.cmd --prefix functions run check
+npx.cmd expo export --platform web --platform android
 ```
 
-Veja `docs/escopo.md`, `docs/apresentacao.md` e `docs/backlog.md`.
+Os testes do backend usam os handlers reais com persistência em memória na fronteira do Firestore/Storage. Regras publicadas, autenticação real, uploads e pagamentos ainda precisam de homologação com seus projetos e contas.
 
-## Git
+## Estrutura
 
-Este projeto deve usar seu próprio repositório, sem alterar o remoto do Ponto Certo:
-https://github.com/02kamk/Projeto-ApoiaPet_Mobile
+- `src/account/`: telas de cadastro, catálogo, candidaturas, agenda e doações.
+- `src/backend/`: sessão, consultas em tempo real e envio/leitura de fotos.
+- `functions/`: validações, transações de adoção, chat e integração de pagamentos.
+- `firestore.rules` e `storage.rules`: controle de acesso por titular e ONG participante.
 
-Se ainda não houver repositório local, na pasta ApoiaPet:
+As antigas rotas da demonstração redirecionam para a área conectada. Seus dados temporários não podem ser recuperados depois de recarregar. Arquivos antigos de demonstração e documentos de escopo anteriores permanecem como referência, sem participação no fluxo atual.
 
-```sh
-git init -b main
-git add .
-git commit -m "Base navegável de adoção ApoiaPet"
-git remote add origin https://github.com/02kamk/Projeto-ApoiaPet_Mobile.git
-git push -u origin main
-```
-
-Antes de publicar, consultar o remoto. Se já tiver commits, reconciliar o histórico; nunca usar force push. Nenhuma publicação deve ser presumida a partir destes comandos.
+O cadastro de ONG é autodeclarado; imagens não geram aprovação automática. Adoções são avaliadas por pessoas. Pagamentos reais ficam desativados até configurar e homologar a integração.

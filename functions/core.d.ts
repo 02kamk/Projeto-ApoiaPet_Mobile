@@ -1,0 +1,10 @@
+export function text(value: unknown, label: string, max?: number): string;
+export function id(value: unknown): string;
+export function fullName(value: unknown): string;
+export function phone(value: unknown): string;
+export function passwordRequirements(value: string): boolean[];
+export function cep(value: unknown): string;
+export function cents(value: number): number;
+export function scheduledDate(value: string, now?: number): string;
+export function decide(status: string, action: string): string;
+export function paymentMatches(payment: Record<string, unknown>, record: { id: string; amountCents: number }, collectorId: string): boolean;
