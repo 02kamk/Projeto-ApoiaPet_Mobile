@@ -1,4 +1,3 @@
 import { Stack } from 'expo-router';
-import { DemoProvider } from '../DemoScreen';
-import { DonationsProvider } from '../donations/context';
-export default function Layout() { return <DemoProvider><DonationsProvider><Stack screenOptions={{ headerShown: false }} /></DonationsProvider></DemoProvider>; }
+import { SessionProvider } from '../backend/session';
+export default function Layout() { return <SessionProvider><Stack screenOptions={{ headerShown: false }} /></SessionProvider>; }

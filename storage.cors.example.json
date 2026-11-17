@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["http://localhost:8081", "https://SEU-PROJETO.web.app"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Authorization", "x-firebase-storage-version"],
+    "maxAgeSeconds": 3600
+  }
+]

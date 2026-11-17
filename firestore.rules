@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function participant(data) { return signedIn() && (data.ongId == request.auth.uid || data.applicantId == request.auth.uid); }
+    match /profiles/{uid} {
+      allow read: if signedIn() && (uid == request.auth.uid || resource.data.role == 'ong');
+      allow write: if false;
+    }
+    match /privateProfiles/{uid} { allow read: if signedIn() && uid == request.auth.uid; allow write: if false; }
+    match /pets/{id} {
+      allow read: if signedIn() && (resource.data.listed == true || resource.data.ongId == request.auth.uid);
+      allow write: if false;
+    }
+    match /applications/{id} {
+      allow read: if participant(resource.data);
+      allow write: if false;
+      match /messages/{messageId} {
+        allow read: if participant(get(/databases/$(database)/documents/applications/$(id)).data);
+        allow write: if false;
+      }
+    }
+    match /donations/{id} {
+      allow read: if signedIn() && (resource.data.ongId == request.auth.uid || resource.data.donorId == request.auth.uid);
+      allow write: if false;
+    }
+    match /paymentConnections/{uid} { allow read: if signedIn() && request.auth.uid == uid; allow write: if false; }
+    // Legacy simulation records remain readable to their participants during migration.
+    match /testPayments/{id} {
+      allow read: if signedIn() && (resource.data.ongId == request.auth.uid || resource.data.donorId == request.auth.uid);
+      allow write: if false;
+    }
+    // Includes OAuth states and recipient tokens: server only.
+    match /{document=**} { allow read, write: if false; }
+  }
+}

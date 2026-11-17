@@ -1,1 +1,1 @@
-export { default } from '../DemoScreen';
+export { default } from '../account/AccountScreen';
