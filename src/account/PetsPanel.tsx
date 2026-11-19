@@ -52,10 +52,10 @@ export function PetsPanel() {
       const current = species || groups.find(group => counts[group.species] > 0)?.species || groups[0].species;
       const list = filtered.filter(pet => inGroup(pet, current));
       return <>
+        <StatusCounters pets={visible} value={status} onChange={setStatus} />
         {list.length > 0 ? <Carousel compact title={groups.find(group => group.species === current)!.title} pets={list} ong near={() => false} onOpen={pet => setOpenId(pet.id)}
           header={<SpeciesSelector value={current} counts={counts} onChange={setSpecies} />} />
           : <View style={{ gap: 8 }}><SpeciesSelector value={current} counts={counts} onChange={setSpecies} /><Text style={[s.muted, { textAlign: 'center', paddingVertical: 20 }]}>Nenhum animal {status ? 'nesta situação' : 'desta espécie'}.</Text></View>}
-        <StatusCounters pets={visible} value={status} onChange={setStatus} />
         <PetInsights pets={visible} onOpen={pet => setOpenId(pet.id)} />
       </>;
     })()}

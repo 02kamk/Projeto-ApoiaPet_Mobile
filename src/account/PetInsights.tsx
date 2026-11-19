@@ -24,7 +24,7 @@ export function StatusCounters({ pets, value, onChange }: { pets: Listing[]; val
     <View style={st.titleRow}>
       <View style={{ flex: 1 }}>
         <Text style={st.title}>Situação dos animais</Text>
-        <View style={[st.titleRow, { gap: 4 }]}><MaterialCommunityIcons name="gesture-tap" size={14} color={colors.muted} /><Text style={st.hint}>{value ? 'Filtro ativo no carrossel acima' : 'Toque para filtrar o carrossel'}</Text></View>
+        <View style={[st.titleRow, { gap: 4 }]}><MaterialCommunityIcons name="gesture-tap" size={14} color={colors.muted} /><Text style={st.hint}>{value ? 'Filtro ativo no carrossel abaixo' : 'Toque para filtrar o carrossel'}</Text></View>
       </View>
       {!!value && <Pressable accessibilityRole="button" onPress={() => onChange('')} hitSlop={8} style={[st.clear, { backgroundColor: theme.mint }]}><MaterialCommunityIcons name="close" size={14} color={theme.primary} /><Text style={[st.link, { color: theme.primary, marginLeft: 0 }]}>Limpar</Text></Pressable>}
     </View>

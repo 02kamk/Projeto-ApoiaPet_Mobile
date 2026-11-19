@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Button, colors, Screen, TabBar, ThemeProvider, themes, styles as s } from '../ui';
-import { firebaseConfigured, usingEmulators } from '../backend/firebase';
+import { firebaseConfigured } from '../backend/firebase';
 import { Role, useSession, ProfileInput } from '../backend/session';
 import { cep, cnpj, passwordRequirements } from '../../functions/core';
 import { Feedback, Input, useAction } from './components';
@@ -66,7 +66,6 @@ function AuthForm() {
   const title = completing ? 'Seu cadastro' : !registering ? 'Boas-vindas' : 'Criar conta';
   const back = completing ? undefined : registering && step === 2 ? () => { setStep(1); action.setMessage(''); } : () => { setWelcome(true); action.setMessage(''); };
   return <AuthLayout title={title} onBack={back}>
-    {usingEmulators && <Text style={styles.testBadge}>Modo de teste</Text>}
     {!firebaseConfigured && <Text style={s.notice}>O serviço de contas ainda não foi ativado.</Text>}
     {registering && !completing && <View style={styles.steps} accessibilityLabel={`Etapa ${step} de 2`}>{[1, 2].map(item => <View key={item} style={[styles.stepDot, item <= step && styles.stepDotActive]} />)}</View>}
     <View style={{ gap: 18 }}>
@@ -173,7 +172,6 @@ function Dashboard() {
   const titles: Record<string, string> = { pets: ong ? 'Meus animais' : 'Adotar', applications: ong ? 'Administração' : 'Minhas candidaturas', calendar: 'Agenda', payments: ong ? 'Doações recebidas' : 'Doar', profile: 'Meu perfil' };
   const phrases = [`Olá, ${profile.name}!`, ...(ong ? ongPhrases : donorPhrases)];
   return <ThemeProvider theme={ong ? themes.ong : themes.donor}><Screen title={titles[tab!]} subtitle={<Typewriter phrases={phrases} style={[s.headerSubtitle, styles.greeting, { color: (ong ? themes.ong : themes.donor).primary }]} />} right={<NotificationBell unread={notifications.unread} onPress={() => setMenuOpen(true)} />} footer={<TabBar items={tabs} active={tab!} onChange={key => router.setParams({ tab: key })} />}>
-    {usingEmulators && <Text style={styles.testBadge}>Modo de teste</Text>}
     {tab === 'pets' && <PetsPanel />}
     {(tab === 'applications' || tab === 'calendar') && <><ApplicationsPanel calendar={tab === 'calendar'} />{ong && tab === 'applications' && <View style={{ gap: 12, marginTop: 8 }}><Text style={s.subtitle}>Equipe</Text><Team /></View>}</>}
     {tab === 'payments' && <PaymentsPanel />}
@@ -211,7 +209,6 @@ const styles = StyleSheet.create({
   welcomeButtonText: { color: colors.green, fontSize: 20, fontWeight: '700' },
   link: { alignSelf: 'flex-end', paddingVertical: 6, minHeight: 32, marginTop: -8 },
   linkText: { color: colors.green, fontWeight: '700' },
-  testBadge: { alignSelf: 'center', paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.mint, color: colors.green, fontSize: 12, fontWeight: '700', overflow: 'hidden' },
   steps: { flexDirection: 'row', justifyContent: 'center', gap: 6 },
   stepDot: { width: 28, height: 6, borderRadius: 3, backgroundColor: colors.soft },
   stepDotActive: { backgroundColor: colors.green },
