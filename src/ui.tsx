@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Animated, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 export const colors = {
   green: '#176B50',
@@ -12,22 +13,40 @@ export const colors = {
   border: '#DCE5DF',
   mint: '#E4F3EA',
   header: '#BFE3CD',
+  headerDeep: '#86C7A3',
   soft: '#D3ECDC',
   white: '#FFFFFF',
 };
 
+// Tema por tipo de conta: doador usa o verde da marca; ONG usa verde-musgo.
+export type Theme = { primary: string; header: string; headerDeep: string; soft: string; mint: string; tintLight: string; tintMid: string; blobs: [string, string, string, string] };
+export const themes: Record<'donor' | 'ong', Theme> = {
+  donor: { primary: colors.green, header: colors.header, headerDeep: colors.headerDeep, soft: colors.soft, mint: colors.mint, tintLight: '#7FC4A0', tintMid: '#3E9A72', blobs: ['#2E8A63', '#E9F7EE', '#5FAE86', '#CFEEDB'] },
+  ong: { primary: '#4A5D23', header: '#DDE3C8', headerDeep: '#AAB884', soft: '#E3E8D2', mint: '#EEF1E4', tintLight: '#A3B27A', tintMid: '#6B7F3A', blobs: ['#5E7330', '#F4F6EC', '#8A9A5B', '#D9E0C2'] },
+};
+const ThemeContext = createContext<Theme>(themes.donor);
+export function ThemeProvider({ theme, children }: React.PropsWithChildren<{ theme: Theme }>) { return <ThemeContext.Provider value={theme}>{children}</ThemeContext.Provider>; }
+export function useTheme() { return useContext(ThemeContext); }
+// Monta os estilos uma vez por tema; cada componente pega o conjunto do tema atual.
+export function themedStyles<T>(make: (theme: Theme) => T) {
+  const sheets = { donor: make(themes.donor), ong: make(themes.ong) };
+  return function useThemedStyles() { return useTheme() === themes.ong ? sheets.ong : sheets.donor; };
+}
+
+
 type ButtonProps = { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean };
 
 export function Button({ title, onPress, secondary = false, disabled = false }: ButtonProps) {
+  const theme = useTheme();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, secondary && styles.buttonSecondary, pressed && { opacity: 0.85 }, disabled && { opacity: 0.5 }]}
+      style={({ pressed }) => [styles.button, { backgroundColor: secondary ? theme.soft : theme.primary }, pressed && { opacity: 0.85 }, disabled && { opacity: 0.5 }]}
     >
-      <Text style={[styles.buttonText, secondary && styles.buttonTextSecondary]}>{title}</Text>
+      <Text style={[styles.buttonText, secondary && { color: theme.primary }]}>{title}</Text>
     </Pressable>
   );
 }
@@ -48,13 +67,15 @@ export function Card({ children }: React.PropsWithChildren) {
 }
 
 export function Badge({ text }: { text: string }) {
-  return <Text style={styles.badge}>{text}</Text>;
+  const theme = useTheme();
+  return <Text style={[styles.badge, { backgroundColor: theme.mint, color: theme.primary }]}>{text}</Text>;
 }
 
 export function LinkButton({ title, onPress, disabled = false, align = 'center' }: { title: string; onPress: () => void; disabled?: boolean; align?: 'center' | 'flex-start' | 'flex-end' }) {
+  const theme = useTheme();
   return (
     <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} hitSlop={6} style={[styles.link, { alignSelf: align }, disabled && { opacity: 0.5 }]}>
-      <Text style={styles.linkText}>{title}</Text>
+      <Text style={[styles.linkText, { color: theme.primary }]}>{title}</Text>
     </Pressable>
   );
 }
@@ -62,13 +83,14 @@ export function LinkButton({ title, onPress, disabled = false, align = 'center' 
 type SegmentProps = { options: string[]; value: string; onChange: (value: string) => void; disabled?: boolean; labels?: Record<string, string>; compact?: boolean };
 
 export function Segment({ options, value, onChange, disabled = false, labels, compact = false }: SegmentProps) {
+  const theme = useTheme();
   return (
-    <View style={[styles.segment, compact && { padding: 3 }]} accessibilityRole="radiogroup">
+    <View style={[styles.segment, { backgroundColor: theme.mint }, compact && { padding: 3 }]} accessibilityRole="radiogroup">
       {options.map(option => {
         const active = option === value;
         return (
-          <Pressable key={option} accessibilityRole="radio" accessibilityState={{ checked: active, disabled }} disabled={disabled} onPress={() => onChange(option)} hitSlop={compact ? 6 : undefined} style={[styles.segmentItem, compact && { minHeight: 32 }, active && styles.segmentActive]}>
-            <Text style={[styles.segmentText, compact && { fontSize: 13 }, active && styles.segmentTextActive]}>{labels?.[option] ?? option}</Text>
+          <Pressable key={option} accessibilityRole="radio" accessibilityState={{ checked: active, disabled }} disabled={disabled} onPress={() => onChange(option)} hitSlop={compact ? 6 : undefined} style={[styles.segmentItem, compact && { minHeight: 32 }, active && { backgroundColor: theme.primary }]}>
+            <Text style={[styles.segmentText, { color: theme.primary }, compact && { fontSize: 13 }, active && styles.segmentTextActive]}>{labels?.[option] ?? option}</Text>
           </Pressable>
         );
       })}
@@ -78,23 +100,67 @@ export function Segment({ options, value, onChange, disabled = false, labels, co
 
 type ScreenProps = React.PropsWithChildren<{ title: string; subtitle?: React.ReactNode; onBack?: () => void; right?: React.ReactNode; footer?: React.ReactNode }>;
 
+// Degradê "vivo" do cabeçalho: base diagonal + manchas de luz e sombra vagando em loop infinito.
+type Blob = { size: number; duration: number; path: [number, number][] };
+const blobs: Blob[] = [
+  { size: 1.1, duration: 30000, path: [[-0.2, -0.3], [0.5, 0.1], [0.9, -0.2], [0.3, 0.5], [-0.2, -0.3]] },
+  { size: 0.9, duration: 24000, path: [[0.8, 0.4], [0.1, -0.2], [-0.1, 0.6], [0.6, 0.2], [0.8, 0.4]] },
+  { size: 1.0, duration: 36000, path: [[0.4, 0.8], [1.0, 0.3], [0.2, 0.0], [-0.3, 0.4], [0.4, 0.8]] },
+  { size: 0.7, duration: 20000, path: [[0.0, 0.2], [0.7, 0.6], [1.1, 0.0], [0.4, -0.3], [0.0, 0.2]] },
+];
+function WanderingBlob({ blob, color, index, width, height }: { blob: Blob; color: string; index: number; width: number; height: number }) {
+  const [t] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(t, { toValue: 1, duration: blob.duration, easing: Easing.linear, useNativeDriver: nativeDriver }));
+    loop.start();
+    return () => loop.stop();
+  }, [t, blob.duration]);
+  const diameter = Math.max(width, height) * blob.size;
+  const input = blob.path.map((_, i) => i / (blob.path.length - 1));
+  const translateX = t.interpolate({ inputRange: input, outputRange: blob.path.map(([x]) => x * width - diameter / 2) });
+  const translateY = t.interpolate({ inputRange: input, outputRange: blob.path.map(([, y]) => y * height * 2 - diameter / 2) });
+  const scale = t.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.25, 1] });
+  const id = `header-blob-${index}`;
+  return <Animated.View style={{ position: 'absolute', left: 0, top: 0, width: diameter, height: diameter, transform: [{ translateX }, { translateY }, { scale }] }}>
+    <Svg width={diameter} height={diameter}>
+      <Defs><RadialGradient id={id} cx="50%" cy="50%" r="50%"><Stop offset="0" stopColor={color} stopOpacity={0.75} /><Stop offset="0.6" stopColor={color} stopOpacity={0.25} /><Stop offset="1" stopColor={color} stopOpacity={0} /></RadialGradient></Defs>
+      <Rect width="100%" height="100%" fill={`url(#${id})`} />
+    </Svg>
+  </Animated.View>;
+}
+function MovingGradient() {
+  const theme = useTheme();
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const { width, height } = size;
+  return <View pointerEvents="none" style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} onLayout={event => setSize({ width: event.nativeEvent.layout.width, height: event.nativeEvent.layout.height })}>
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none">
+      <Defs><LinearGradient id="screen-header" x1="0" y1="0" x2="1" y2="1"><Stop offset="0" stopColor={theme.header} /><Stop offset="1" stopColor={theme.headerDeep} /></LinearGradient></Defs>
+      <Rect width="100%" height="100%" fill="url(#screen-header)" />
+    </Svg>
+    {width > 0 && blobs.map((blob, index) => <WanderingBlob key={index} blob={blob} color={theme.blobs[index]} index={index} width={width} height={height} />)}
+  </View>;
+}
 export function Screen({ title, subtitle, onBack, right, footer, children }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   return (
-    <View style={styles.page}>
+    <View style={[styles.page, { backgroundColor: theme.header }]}>
+      <View>
+      <MovingGradient />
       <View style={[styles.header, { paddingTop: insets.top + 28 }]}>
         <View style={styles.headerRow}>
           {onBack ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Voltar" onPress={onBack} hitSlop={12} style={styles.headerIcon}>
-              <Text style={styles.back}>‹</Text>
+              <Text style={[styles.back, { color: theme.primary }]}>‹</Text>
             </Pressable>
           ) : (
             <View style={styles.headerIcon} />
           )}
-          <Text style={[styles.headerTitle, !onBack && !right && { textAlign: 'left' }]} numberOfLines={1}>{title}</Text>
+          <Text style={[styles.headerTitle, title.length > 16 ? { fontSize: 21 } : title.length > 12 ? { fontSize: 23 } : null, !onBack && !right && { textAlign: 'left' }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{title}</Text>
           <View style={styles.headerIcon}>{right}</View>
         </View>
-        {!!subtitle && (typeof subtitle === 'string' ? <Text style={styles.headerSubtitle}>{subtitle}</Text> : subtitle)}
+        {!!subtitle && (typeof subtitle === 'string' ? <Text style={[styles.headerSubtitle, { color: theme.primary }]}>{subtitle}</Text> : subtitle)}
+      </View>
       </View>
       <ScrollView style={styles.sheet} contentContainerStyle={[styles.content, { paddingBottom: footer ? 120 : 50 }]} keyboardShouldPersistTaps="handled">
         {children}
@@ -113,6 +179,7 @@ const nativeDriver = Platform.OS !== 'web';
 
 export function TabBar({ items, active, onChange }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const theme = useTheme();
   const index = Math.max(0, items.findIndex(item => item.key === active));
   const [width, setWidth] = useState(0);
   const [position] = useState(() => new Animated.Value(index));
@@ -130,10 +197,10 @@ export function TabBar({ items, active, onChange }: TabBarProps) {
   const translateX = position.interpolate({ inputRange: [0, Math.max(1, items.length - 1)], outputRange: [slot / 2, slot * (Math.max(1, items.length - 1) + 0.5)] });
   const current = items[index];
   return (
-    <View style={[styles.tabBar, { paddingBottom: insets.bottom + 10 }]} accessibilityRole="tablist" onLayout={event => setWidth(event.nativeEvent.layout.width)}>
+    <View style={[styles.tabBar, { backgroundColor: theme.primary, paddingBottom: insets.bottom + 10 }]} accessibilityRole="tablist" onLayout={event => setWidth(event.nativeEvent.layout.width)}>
       {width > 0 && <>
         <Animated.View pointerEvents="none" style={[styles.notch, { transform: [{ translateX }, { translateX: -NOTCH / 2 }] }]} />
-        <Animated.View pointerEvents="none" style={[styles.bubble, { transform: [{ translateX }, { translateX: -BUBBLE / 2 }, { translateY: pop.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }, { scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }]}>
+        <Animated.View pointerEvents="none" style={[styles.bubble, { backgroundColor: theme.primary, borderColor: theme.primary, transform: [{ translateX }, { translateX: -BUBBLE / 2 }, { translateY: pop.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }, { scale: pop.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) }] }]}>
           <MaterialCommunityIcons name={current.icon} size={26} color={colors.white} />
         </Animated.View>
       </>}
@@ -192,3 +259,9 @@ export const styles = StyleSheet.create({
   notch: { position: 'absolute', top: 0, left: 0, width: NOTCH, height: NOTCH / 2 + 4, borderBottomLeftRadius: NOTCH / 2, borderBottomRightRadius: NOTCH / 2, backgroundColor: colors.white },
   bubble: { position: 'absolute', top: -BUBBLE / 2 + 2, left: 0, width: BUBBLE, height: BUBBLE, borderRadius: BUBBLE / 2, backgroundColor: colors.green, borderWidth: 4, borderColor: colors.green, alignItems: 'center', justifyContent: 'center', shadowColor: colors.dark, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 6 },
 });
+
+// Aviso e campo compartilhados com o fundo na cor do tema.
+export const useSharedSheet = themedStyles(t => ({
+  notice: [styles.notice, { backgroundColor: t.mint }],
+  input: [styles.input, { backgroundColor: t.mint }],
+}));

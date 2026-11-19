@@ -78,7 +78,7 @@ test('candidatura pertence à ONG escolhida; retirada reserva, conclui e encerra
   assert.equal(records.get(`applications/${b.id}`).status, 'closed');
   await assert.rejects(invoke('changeApplication', 'ong-1', { id: a.id, action: 'complete' }));
 });
-test('desistência libera animal; simulação não altera pagamento real nem outro usuário', async () => {
+test('desistência libera animal; doação de teste é aprovada automaticamente', async () => {
   const pet = await invoke('savePet', 'ong-1', { name: 'Nino', species: 'Cão', age: '1 ano', description: 'Resgatado', vaccinesDone: 'Não informado', vaccinesNeeded: 'Avaliação veterinária', photoPath: 'pets/ong-1/nino.jpg' });
   const application = await invoke('submitApplication', 'donor-1', { petId: pet.id, housing: 'Casa', safety: 'Muros e portões', routine: 'Cuidados', motivation: 'Acolher', consent: true, photoPaths: [`homes/donor-1/${pet.id}_donor-1/room.jpg`] });
   await invoke('changeApplication', 'ong-1', { id: application.id, action: 'approve' });
@@ -91,9 +91,45 @@ test('desistência libera animal; simulação não altera pagamento real nem out
   const again = await invoke('createDonation', 'donor-1', data);
   assert.equal(donation.id, again.id);
   assert.equal(records.get(`donations/${donation.id}`).donorName, 'Maria Silva');
-  await assert.rejects(invoke('simulateDonation', 'donor-2', { id: donation.id, status: 'confirmed' }));
-  await invoke('simulateDonation', 'donor-1', { id: donation.id, status: 'confirmed' });
-  await assert.rejects(invoke('simulateDonation', 'donor-1', { id: donation.id, status: 'cancelled' }));
-  records.set('donations/real-payment', { donorId: 'donor-1', mode: 'mercadopago', status: 'pending' });
-  await assert.rejects(invoke('simulateDonation', 'donor-1', { id: 'real-payment', status: 'confirmed' }));
+  assert.equal(records.get(`donations/${donation.id}`).status, 'confirmed');
+  assert.ok(records.get(`donations/${donation.id}`).confirmedAt);
+});
+test('doador e ONG salvam, trocam e removem a própria foto de perfil', async () => {
+  seed('ong-9', 'ong', 'Abrigo Foto'); seed('donor-9', 'donor', 'Ana');
+  await invoke('setProfilePhoto', 'ong-9', { photoPath: 'avatars/ong-9/a.jpg' });
+  assert.equal(records.get('profiles/ong-9').photoPath, 'avatars/ong-9/a.jpg');
+  await invoke('setProfilePhoto', 'donor-9', { photoPath: 'avatars/donor-9/b.png' });
+  assert.equal(records.get('profiles/donor-9').photoPath, 'avatars/donor-9/b.png');
+  await assert.rejects(invoke('setProfilePhoto', 'donor-9', { photoPath: 'avatars/ong-9/a.jpg' }), /Foto inválida/);
+  await assert.rejects(invoke('setProfilePhoto', 'donor-9', { photoPath: 'pets/donor-9/x.jpg' }), /Foto inválida/);
+  await invoke('setProfilePhoto', 'donor-9', { photoPath: '' });
+  assert.equal(records.get('profiles/donor-9').photoPath, '');
+  await assert.rejects(invoke('setProfilePhoto', 'sem-cadastro', { photoPath: '' }), /Complete seu cadastro/);
+});
+test('ONG salva ficha institucional, equipe e capa; doador não', async () => {
+  seed('ong-7', 'ong', 'Abrigo Ficha'); seed('donor-7', 'donor', 'Bia');
+  await invoke('saveOrgInfo', 'ong-7', { cnpj: '11.222.333/0001-81', legalName: 'Associação Abrigo Ficha', about: 'Resgatamos cães e gatos.', foundedYear: '2015', whatsapp: '81987654321', publicEmail: 'Contato@Abrigo.org', instagram: '@abrigo.ficha', website: 'abrigo.org.br', address: 'Rua A, 10', hours: 'Seg a sex, 9h às 17h', team: [{ name: 'Ana Lima', role: 'Coordenação' }] });
+  const org = records.get('profiles/ong-7').org;
+  assert.equal(org.cnpj, '11222333000181'); assert.equal(org.publicEmail, 'contato@abrigo.org'); assert.equal(org.instagram, 'abrigo.ficha');
+  assert.equal(org.website, 'https://abrigo.org.br'); assert.equal(org.foundedYear, 2015); assert.equal(org.team[0].name, 'Ana Lima');
+  await assert.rejects(invoke('saveOrgInfo', 'ong-7', { cnpj: '11222333000180' }), /CNPJ inválido/);
+  await assert.rejects(invoke('saveOrgInfo', 'ong-7', { foundedYear: '1800' }), /Ano de fundação/);
+  await assert.rejects(invoke('saveOrgInfo', 'donor-7', { about: 'x' }), /perfil correto/);
+  await invoke('setProfilePhoto', 'ong-7', { photoPath: 'avatars/ong-7/capa.jpg', kind: 'cover' });
+  assert.equal(records.get('profiles/ong-7').coverPath, 'avatars/ong-7/capa.jpg');
+  await assert.rejects(invoke('setProfilePhoto', 'donor-7', { photoPath: 'avatars/donor-7/capa.jpg', kind: 'cover' }), /Somente ONGs/);
+});
+test('ONG define responsável da equipe por animal; data de cadastro é preservada', async () => {
+  seed('ong-8', 'ong', 'Abrigo Equipe'); seed('ong-9b', 'ong', 'Outro Abrigo');
+  await invoke('saveOrgInfo', 'ong-8', { team: [{ name: 'Ana Lima', role: 'Coordenação' }] });
+  const pet = await invoke('savePet', 'ong-8', { name: 'Rex', species: 'Cão', age: '2 anos', description: 'Calmo', health: { vaccinesDone: [], vaccinesNeeded: [], tests: [], notes: '' }, photoPath: 'pets/ong-8/rex.jpg' });
+  const created = records.get(`pets/${pet.id}`).createdAt;
+  assert.ok(created);
+  await invoke('setPetCaretaker', 'ong-8', { petId: pet.id, caretaker: 'Ana Lima' });
+  assert.equal(records.get(`pets/${pet.id}`).caretaker, 'Ana Lima');
+  await assert.rejects(invoke('setPetCaretaker', 'ong-8', { petId: pet.id, caretaker: 'Fulano' }), /equipe/);
+  await assert.rejects(invoke('setPetCaretaker', 'ong-9b', { petId: pet.id, caretaker: '' }), /não encontrado/);
+  await invoke('savePet', 'ong-8', { id: pet.id, name: 'Rex', species: 'Cão', age: '3 anos', description: 'Calmo', health: { vaccinesDone: [], vaccinesNeeded: [], tests: [], notes: '' }, photoPath: 'pets/ong-8/rex.jpg' });
+  assert.equal(records.get(`pets/${pet.id}`).createdAt, created);
+  assert.equal(records.get(`pets/${pet.id}`).caretaker, 'Ana Lima');
 });

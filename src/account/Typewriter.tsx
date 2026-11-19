@@ -3,7 +3,7 @@ import { AccessibilityInfo, Animated, Easing, Platform, StyleProp, Text, TextSty
 
 const TYPE_MS = 110;
 const DELETE_MS = 55;
-const HOLD_MS = 19300;
+const HOLD_MS = 3000;
 const PAUSE_MS = 1200;
 const nativeDriver = Platform.OS !== 'web';
 
@@ -35,12 +35,14 @@ export function Typewriter({ phrases, style }: Props) {
 
   useEffect(() => {
     if (reduceMotion || phrases.length < 2) return;
-    let delay = deleting ? DELETE_MS : TYPE_MS;
-    if (!deleting && length === phrase.length) delay = HOLD_MS;
-    if (deleting && length === 0) delay = PAUSE_MS;
+    // >= / <= so a phrase that got shorter (e.g. the ONG name changed) can't
+    // leave `length` past the end, counting up forever with nothing visible changing.
+    const typed = !deleting && length >= phrase.length;
+    const erased = deleting && length <= 0;
+    const delay = typed ? HOLD_MS : erased ? PAUSE_MS : deleting ? DELETE_MS : TYPE_MS;
     const timer = setTimeout(() => {
-      if (!deleting && length === phrase.length) setDeleting(true);
-      else if (deleting && length === 0) { setDeleting(false); setIndex(current => (current + 1) % phrases.length); }
+      if (typed) { setLength(phrase.length); setDeleting(true); }
+      else if (erased) { setDeleting(false); setIndex(current => (current + 1) % phrases.length); }
       else setLength(current => current + (deleting ? -1 : 1));
     }, delay);
     return () => clearTimeout(timer);

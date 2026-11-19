@@ -26,7 +26,7 @@ export function cep(value) {
   return digits;
 }
 export function cents(value) {
-  if (!Number.isInteger(value) || value < 100 || value > 1000000) throw Error('Valor permitido: R$ 1,00 a R$ 10.000,00.');
+  if (!Number.isInteger(value) || value < 500 || value > 1000000) throw Error('Valor permitido: R$ 5,00 a R$ 10.000,00.');
   return value;
 }
 export function scheduledDate(value, now = Date.now()) {
@@ -50,4 +50,43 @@ export function paymentMatches(payment, record, collectorId) {
   return payment.external_reference === record.id && payment.currency_id === 'BRL'
     && Math.round(Number(payment.transaction_amount) * 100) === record.amountCents
     && String(payment.collector_id) === String(collectorId);
+}
+export function cnpj(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!/^\d{14}$/.test(digits) || /^(\d)\1{13}$/.test(digits)) throw Error('Informe um CNPJ válido com 14 números.');
+  const check = length => {
+    let sum = 0; let weight = length - 7;
+    for (let i = 0; i < length; i++) { sum += Number(digits[i]) * weight--; if (weight < 2) weight = 9; }
+    const rest = sum % 11; return rest < 2 ? 0 : 11 - rest;
+  };
+  if (check(12) !== Number(digits[12]) || check(13) !== Number(digits[13])) throw Error('CNPJ inválido. Confira os números.');
+  return digits;
+}
+// Ficha institucional pública da ONG. Campos vazios são permitidos; preenchidos são validados.
+export function orgInfo(data = {}, now = new Date()) {
+  const optional = (value, label, max) => (typeof value === 'string' && value.trim() ? text(value, label, max) : '');
+  const year = data.foundedYear === '' || data.foundedYear == null ? null : Number(data.foundedYear);
+  if (year !== null && (!Number.isInteger(year) || year < 1900 || year > now.getFullYear())) throw Error(`Ano de fundação: use um ano entre 1900 e ${now.getFullYear()}.`);
+  const email = optional(data.publicEmail, 'E-mail público', 254).toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw Error('Informe um e-mail público válido.');
+  const instagram = optional(data.instagram, 'Instagram', 80).replace(/^https?:\/\/(www\.)?instagram\.com\//i, '').replace(/^@/, '').replace(/\/.*$/, '');
+  if (instagram && !/^[A-Za-z0-9._]{1,30}$/.test(instagram)) throw Error('Informe o usuário do Instagram, como @abrigo.');
+  let website = optional(data.website, 'Site', 200);
+  if (website && !/^https?:\/\//i.test(website)) website = `https://${website}`;
+  if (website) { let ok = false; try { const url = new URL(website); ok = ['http:', 'https:'].includes(url.protocol) && url.hostname.includes('.'); } catch { ok = false; } if (!ok) throw Error('Informe um site válido, como abrigo.org.br.'); }
+  if (data.team != null && (!Array.isArray(data.team) || data.team.length > 20)) throw Error('A equipe pode ter até 20 pessoas.');
+  const team = (data.team || []).map(member => ({ name: text(member?.name, 'Nome do integrante', 80), role: optional(member?.role, 'Função', 60) }));
+  return {
+    cnpj: typeof data.cnpj === 'string' && data.cnpj.trim() ? cnpj(data.cnpj) : '',
+    legalName: optional(data.legalName, 'Razão social', 150),
+    about: optional(data.about, 'Sobre a ONG', 600),
+    foundedYear: year,
+    whatsapp: typeof data.whatsapp === 'string' && data.whatsapp.trim() ? phone(data.whatsapp) : '',
+    publicEmail: email,
+    instagram,
+    website,
+    address: optional(data.address, 'Endereço de atendimento', 200),
+    hours: optional(data.hours, 'Horário de atendimento', 120),
+    team,
+  };
 }

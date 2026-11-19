@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, createUserWithEmailAndPassword, onAuthStateChanged, sendPasswordResetEmail, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { EmailAuthProvider, User, createUserWithEmailAndPassword, onAuthStateChanged, reauthenticateWithCredential, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { auth, db, errorMessage, functions } from './firebase';
-import { cep, fullName, passwordRequirements, phone } from '../../functions/core';
+import { cep, cnpj, fullName, passwordRequirements, phone } from '../../functions/core';
+import type { OrgInfo } from '../../functions/core';
 export type Role = 'donor' | 'ong';
-export type Profile = { name: string; role: Role; city: string; state: string; cityCode: string; fullName: string; phone: string; cep: string; neighborhood: string; street: string };
-export type ProfileInput = { role: Role; fullName: string; ongName: string; phone: string; cep: string };
+export type Profile = { name: string; role: Role; city: string; state: string; cityCode: string; fullName: string; phone: string; cep: string; neighborhood: string; street: string; photoPath?: string; coverPath?: string; org?: Partial<OrgInfo> };
+export type ProfileInput = { role: Role; fullName: string; ongName: string; phone: string; cep: string; cnpj?: string; legalName?: string };
 export async function call<T = { ok: boolean }>(name: string, data: unknown): Promise<T> {
   if (!functions) throw Error('O serviço ainda não está disponível.');
   const response = await httpsCallable<unknown, T>(functions, name)(data);
@@ -46,6 +47,7 @@ function useSessionState() {
   const validateProfile = (value: ProfileInput) => {
     fullName(value.fullName); phone(value.phone); cep(value.cep);
     if (value.role === 'ong' && !value.ongName.trim()) throw Error('Informe o nome da ONG.');
+    if (value.role === 'ong' && value.cnpj) cnpj(value.cnpj);
   };
   const saveProfile = async (value: ProfileInput) => { validateProfile(value); await call('saveProfile', value); };
   return {
@@ -59,6 +61,13 @@ function useSessionState() {
       await saveProfile(value);
     },
     reset: async (email: string) => { if (!auth) throw Error('O serviço de conta ainda não está disponível.'); if (!email.trim()) throw Error('Informe seu e-mail.'); await sendPasswordResetEmail(auth, email.trim()); },
+    changePassword: async (current: string, next: string) => {
+      const account = auth?.currentUser;
+      if (!account?.email) throw Error('Entre novamente para alterar a senha.');
+      if (!passwordRequirements(next).every(Boolean)) throw Error('A senha deve ter 10 caracteres ou mais, maiúscula, minúscula, número e caractere especial.');
+      await reauthenticateWithCredential(account, EmailAuthProvider.credential(account.email, current));
+      await updatePassword(account, next);
+    },
     logout: async () => { if (auth) await signOut(auth); },
   };
 }

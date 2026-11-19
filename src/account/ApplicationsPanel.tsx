@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { applicationStatus, Application, brasilia, Message, useRecords } from '../backend/data';
 import { call, useSession } from '../backend/session';
-import { Badge, Button, Card, colors, LinkButton, styles as s } from '../ui';
+import { Badge, Button, Card, colors, LinkButton, styles as s, themedStyles, useSharedSheet, useTheme } from '../ui';
 import { Feedback, Input, StoredPhoto, useAction } from './components';
+import { PickupFields, splitPickup } from './SchedulePicker';
 
 export function ApplicationsPanel({ history = false, calendar = false }: { history?: boolean; calendar?: boolean }) {
+  const sh = useSharedSheet();
   const { user, profile } = useSession();
   const ong = profile!.role === 'ong';
   const applications = useRecords<Application>('applications', ong ? 'ongId' : 'applicantId', user!.uid);
@@ -20,25 +23,65 @@ export function ApplicationsPanel({ history = false, calendar = false }: { histo
   const upcoming = scheduled.filter(record => Date.parse(record.pickupAt!) < now + 7 * 86400000 && Date.parse(record.pickupAt!) >= now);
   return <>
     {history && <Text style={s.subtitle}>Adoções</Text>}
-    {!calendar && upcoming.length > 0 && <Text style={s.notice}>🔔 {upcoming.length} retirada(s) nos próximos 7 dias</Text>}
+    {!calendar && upcoming.length > 0 && <IconLine box icon="bell-ring-outline" text={`${upcoming.length} retirada(s) nos próximos 7 dias`} />}
     {calendar && <><Calendar records={scheduled} onSelect={setSelectedDay} selected={selectedDay} />{!!selectedDay && <LinkButton title="Ver todas" onPress={() => setSelectedDay('')} />}</>}
     <Feedback message={applications.error} />{applications.loading && <ActivityIndicator accessibilityLabel="Carregando candidaturas" />}
     {!applications.loading && !applications.error && visible.length === 0 && <Text style={[s.muted, { textAlign: 'center', paddingVertical: 16 }]}>{calendar ? 'Nenhuma retirada agendada.' : 'Nenhuma candidatura ainda.'}</Text>}
-    {visible.map(record => <Card key={record.id}>
+    {calendar && visible.map(record => <PickupCard key={record.id} record={record} ong={ong} />)}
+    {!calendar && visible.map(record => <Card key={record.id}>
       <View style={[s.row, { alignItems: 'center', justifyContent: 'space-between' }]}><Text style={s.subtitle}>{record.petName}</Text><Badge text={applicationStatus[record.status]} /></View>
       <Text style={s.muted}>{ong ? record.applicantName : record.ongName} · {brasilia(record.createdAt)}</Text>
-      {record.pickupAt && <Text style={s.notice}>📅 {brasilia(record.pickupAt)}{'\n'}📍 {record.pickupPlace}</Text>}
+      {record.pickupAt && <View style={[sh.notice, { gap: 6 }]}><IconLine icon="calendar-month-outline" text={brasilia(record.pickupAt).slice(0, 17)} /><IconLine icon="map-marker-outline" text={record.pickupPlace || 'Local a combinar'} /></View>}
       <LinkButton align="flex-start" title={openId === record.id ? 'Ver menos' : 'Ver detalhes'} onPress={() => setOpenId(openId === record.id ? '' : record.id)} />
       {openId === record.id && <ApplicationDetails key={record.id} record={record} />}
     </Card>)}
   </>;
 }
+// Agenda: só quem retira, o animal, a data e o local.
+function PickupCard({ record, ong }: { record: Application; ong: boolean }) {
+  const theme = useTheme();
+  const rows: [React.ComponentProps<typeof MaterialCommunityIcons>['name'], string, string][] = [
+    ['account-outline', ong ? 'Adotante' : 'ONG', ong ? record.applicantName : record.ongName],
+    ['paw', 'Animal', record.petName],
+    ['calendar-clock', 'Data', brasilia(record.pickupAt!).slice(0, 17)],
+    ['map-marker-outline', 'Local', record.pickupPlace || 'A combinar'],
+  ];
+  return <Card>{rows.map(([icon, label, value]) => <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <View style={{ width: 34, height: 34, borderRadius: 12, backgroundColor: theme.primary, alignItems: 'center', justifyContent: 'center' }}><MaterialCommunityIcons name={icon} size={18} color={colors.white} /></View>
+    <View style={{ flex: 1 }}><Text style={{ fontSize: 12, fontWeight: '700', color: colors.muted }}>{label}</Text><Text style={{ fontSize: 15, fontWeight: '700', color: colors.dark }}>{value}</Text></View>
+  </View>)}</Card>;
+}
+// Histórico em linha do tempo: mais recente primeiro, com autor, data e mensagem.
+function Timeline({ record }: { record: Application }) {
+  const theme = useTheme();
+  const items = record.history.map((item, index) => ({ ...item, index })).reverse();
+  return <View>
+    {items.map((item, position) => {
+      const first = position === 0; const last = position === items.length - 1;
+      const who = item.actorId === record.ongId ? 'ONG' : item.actorId === record.applicantId ? 'Adotante' : 'Sistema';
+      return <View key={`${item.at}-${item.index}`} style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ width: 16, alignItems: 'center' }}>
+          <View style={{ width: 12, height: 12, borderRadius: 6, marginTop: 4, backgroundColor: first ? theme.primary : colors.white, borderWidth: 2, borderColor: theme.primary }} />
+          {!last && <View style={{ flex: 1, width: 2, marginVertical: 2, backgroundColor: theme.soft }} />}
+        </View>
+        <View style={{ flex: 1, paddingBottom: last ? 0 : 16, gap: 2 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text style={{ fontSize: 11, fontWeight: '600', color: theme.primary, backgroundColor: theme.mint, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, overflow: 'hidden' }}>{who}</Text>
+            <Text style={{ fontSize: 12, color: colors.muted, fontWeight: '400' }}>{brasilia(item.at).slice(0, 17)}</Text>
+          </View>
+          <Text style={{ fontSize: 14, lineHeight: 20, color: colors.text, fontWeight: first ? '500' : '400' }}>{item.message}</Text>
+        </View>
+      </View>;
+    })}
+  </View>;
+}
 function ApplicationDetails({ record }: { record: Application }) {
+  const sh = useSharedSheet();
   const { profile } = useSession();
   const ong = profile!.role === 'ong';
   const [note, setNote] = useState('');
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [date, setDate] = useState(() => splitPickup(record.pickupAt).date);
+  const [time, setTime] = useState(() => splitPickup(record.pickupAt).time || '14:00');
   const [place, setPlace] = useState(record.pickupPlace || '');
   const [confirmPickup, setConfirmPickup] = useState(false);
   const action = useAction();
@@ -46,7 +89,7 @@ function ApplicationDetails({ record }: { record: Application }) {
     void action.run(async () => {
       let pickupAt: string | undefined;
       if (value === 'schedule') {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw Error('Informe data AAAA-MM-DD e horário HH:MM válidos.');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw Error('Escolha o dia no calendário e o horário.');
         pickupAt = new Date(`${date}T${time}:00-03:00`).toISOString();
         if (new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(pickupAt)) !== date) throw Error('Data inválida.');
       }
@@ -59,7 +102,7 @@ function ApplicationDetails({ record }: { record: Application }) {
     {ong && <><Text style={s.label}>{record.applicantName}</Text><Text selectable style={s.muted}>{record.phone} · {record.city} / {record.state}</Text></>}
     {Object.entries(record.answers).map(([key, value]) => <View key={key}><Text style={s.label}>{{ housing: 'Moradia', safety: 'Segurança', routine: 'Rotina', motivation: 'Motivação' }[key]}</Text><Text style={s.text}>{value}</Text></View>)}
     <Text style={s.label}>Fotos do ambiente</Text>{record.photoPaths.map(path => <StoredPhoto key={path} path={path} label="Foto do ambiente onde o animal ficará" />)}
-    <Text style={s.label}>Histórico</Text>{record.history.map((item, index) => <View key={`${item.at}-${index}`}><Text style={s.muted}>{brasilia(item.at)}</Text><Text style={s.text}>{item.message}</Text></View>)}
+    <Text style={s.label}>Histórico</Text><Timeline record={record} />
     {active && <>
       {(ong || record.status === 'needs_info') && <Input label="Mensagem" placeholder={ong ? 'Obrigatória para recusar ou pedir complemento' : 'Responda ao pedido da ONG'} value={note} onChange={setNote} multiline maxLength={2000} />}
       <View style={s.row}>
@@ -69,8 +112,8 @@ function ApplicationDetails({ record }: { record: Application }) {
         {ong && ['sent', 'in_review', 'needs_info', 'approved'].includes(record.status) && <Button disabled={action.busy} secondary title="Recusar" onPress={() => change('reject')} />}
         {!ong && record.status === 'needs_info' && <Button disabled={action.busy} title="Enviar resposta" onPress={() => change('review')} />}
       </View>
-      {ong && ['approved', 'scheduled'].includes(record.status) && <Card><Text style={s.subtitle}>{record.status === 'scheduled' ? 'Reagendar retirada' : 'Agendar retirada'}</Text><View style={[s.row, { flexWrap: 'nowrap' }]}><View style={{ flex: 1 }}><Input label="Data" placeholder="2026-12-01" value={date} onChange={setDate} maxLength={10} /></View><View style={{ flex: 1 }}><Input label="Horário" placeholder="14:30" value={time} onChange={setTime} maxLength={5} /></View></View><Input label="Local" placeholder="Endereço da retirada" value={place} onChange={setPlace} multiline maxLength={500} /><Button disabled={action.busy} title="Agendar" onPress={() => change('schedule')} /></Card>}
-      {ong && record.status === 'scheduled' && <>{!confirmPickup ? <Button disabled={action.busy} title="Animal retirado" onPress={() => setConfirmPickup(true)} /> : <Card><Text style={s.notice}>Isso conclui a adoção e encerra as outras candidaturas deste animal.</Text><Button disabled={action.busy} title="Confirmar retirada" onPress={() => change('complete')} /><LinkButton title="Voltar" onPress={() => setConfirmPickup(false)} /></Card>}</>}
+      {ong && ['approved', 'scheduled'].includes(record.status) && <Card><Text style={s.subtitle}>{record.status === 'scheduled' ? 'Reagendar retirada' : 'Agendar retirada'}</Text><PickupFields date={date} time={time} onDate={setDate} onTime={setTime} /><Input label="Local" placeholder="Endereço da retirada" value={place} onChange={setPlace} multiline maxLength={500} /><Button disabled={action.busy} title="Agendar" onPress={() => change('schedule')} /></Card>}
+      {ong && record.status === 'scheduled' && <>{!confirmPickup ? <Button disabled={action.busy} title="Animal retirado" onPress={() => setConfirmPickup(true)} /> : <Card><Text style={sh.notice}>Isso conclui a adoção e encerra as outras candidaturas deste animal.</Text><Button disabled={action.busy} title="Confirmar retirada" onPress={() => change('complete')} /><LinkButton title="Voltar" onPress={() => setConfirmPickup(false)} /></Card>}</>}
       <LinkButton disabled={action.busy} title={ong ? 'Cancelar processo' : 'Desistir da candidatura'} onPress={() => change('cancel')} />
     </>}
     <Feedback message={action.message} />
@@ -87,6 +130,7 @@ function Chat({ record }: { record: Application }) {
   </Card>;
 }
 function Calendar({ records, onSelect, selected }: { records: Application[]; onSelect: (day: string) => void; selected: string }) {
+  const calendarStyles = useCalendarStylesSheet();
   const [month, setMonth] = useState(() => { const now = new Date(); return new Date(Date.UTC(now.getFullYear(), now.getMonth(), 1)); });
   const year = month.getUTCFullYear(); const index = month.getUTCMonth();
   const total = new Date(Date.UTC(year, index + 1, 0)).getUTCDate();
@@ -112,15 +156,24 @@ function Calendar({ records, onSelect, selected }: { records: Application[]; onS
     </View>
   </Card>;
 }
-const calendarStyles = StyleSheet.create({
+const useCalendarStylesSheet = themedStyles(t => StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   month: { flex: 1, textAlign: 'center' },
-  nav: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' },
-  navText: { fontSize: 28, lineHeight: 30, color: colors.green, fontWeight: '700' },
+  nav: { width: 44, height: 44, borderRadius: 22, backgroundColor: t.soft, alignItems: 'center', justifyContent: 'center' },
+  navText: { fontSize: 28, lineHeight: 30, color: t.primary, fontWeight: '700' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell: { width: '14.28%', alignItems: 'center', paddingVertical: 3 },
-  day: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.mint, alignItems: 'center', justifyContent: 'center' },
-  dayActive: { backgroundColor: colors.green },
+  day: { width: 42, height: 42, borderRadius: 21, backgroundColor: t.mint, alignItems: 'center', justifyContent: 'center' },
+  dayActive: { backgroundColor: t.primary },
   dayText: { color: colors.dark, fontWeight: '700' },
-  dot: { position: 'absolute', bottom: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: colors.green },
-});
+  dot: { position: 'absolute', bottom: 5, width: 5, height: 5, borderRadius: 3, backgroundColor: t.primary },
+}));
+// Linha com ícone desenhado (no lugar de emoji), na cor da conta.
+function IconLine({ icon, text, box = false }: { icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']; text: string; box?: boolean }) {
+  const sh = useSharedSheet();
+  const theme = useTheme();
+  return <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8 }, box && sh.notice]}>
+    <MaterialCommunityIcons name={icon} size={18} color={theme.primary} />
+    <Text style={{ flex: 1, color: colors.dark, fontSize: 14 }}>{text}</Text>
+  </View>;
+}

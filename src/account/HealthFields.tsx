@@ -2,19 +2,22 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Health, testOptions, testResults, vaccineOptions } from '../../functions/health';
-import { colors, styles as s } from '../ui';
+import { colors, styles as s, themedStyles, useTheme } from '../ui';
 import { Input } from './components';
 
 function Check({ label, accessibilityLabel, checked, onPress, disabled }: { label: string; accessibilityLabel: string; checked: boolean; onPress: () => void; disabled: boolean }) {
+  const styles = useStylesSheet();
+  const theme = useTheme();
   return (
     <Pressable accessibilityRole="checkbox" accessibilityLabel={accessibilityLabel} accessibilityState={{ checked, disabled }} disabled={disabled} onPress={onPress} style={[styles.chip, checked && styles.chipActive, disabled && { opacity: 0.5 }]}>
-      <MaterialCommunityIcons name={checked ? 'check' : 'plus'} size={16} color={checked ? colors.white : colors.green} />
+      <MaterialCommunityIcons name={checked ? 'check' : 'plus'} size={16} color={checked ? colors.white : theme.primary} />
       <Text style={[styles.chipText, checked && { color: colors.white }]}>{label}</Text>
     </Pressable>
   );
 }
 
 export function HealthFields({ species, value, onChange, disabled }: { species: string; value: Health; onChange: (value: Health) => void; disabled: boolean }) {
+  const styles = useStylesSheet();
   const vaccines = vaccineOptions[species] || [];
   const tests = testOptions[species] || [];
   return (
@@ -62,9 +65,9 @@ export function HealthFields({ species, value, onChange, disabled }: { species: 
   );
 }
 
-const styles = StyleSheet.create({
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: 14, borderRadius: 999, backgroundColor: colors.mint },
-  chipActive: { backgroundColor: colors.green },
-  chipText: { color: colors.green, fontWeight: '700' },
-  result: { minHeight: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: colors.mint, justifyContent: 'center' },
-});
+const useStylesSheet = themedStyles(t => StyleSheet.create({
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 40, paddingHorizontal: 14, borderRadius: 999, backgroundColor: t.mint },
+  chipActive: { backgroundColor: t.primary },
+  chipText: { color: t.primary, fontWeight: '700' },
+  result: { minHeight: 36, paddingHorizontal: 12, borderRadius: 999, backgroundColor: t.mint, justifyContent: 'center' },
+}));

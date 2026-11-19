@@ -2,14 +2,23 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ImageStyle, Pressable, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import { errorMessage } from '../backend/firebase';
 import { photoUri } from '../backend/photos';
-import { colors, styles as s } from '../ui';
-type InputProps = { label: string; value: string; onChange: (value: string) => void; password?: boolean; email?: boolean; numeric?: boolean; multiline?: boolean; maxLength?: number; placeholder?: string; right?: React.ReactNode };
-export function Input({ label, value, onChange, password = false, email = false, numeric = false, multiline = false, maxLength = 120, placeholder, right }: InputProps) {
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { colors, styles as s, useSharedSheet, useTheme } from '../ui';
+type InputProps = { label: string; value: string; onChange: (value: string) => void; password?: boolean; email?: boolean; numeric?: boolean; multiline?: boolean; maxLength?: number; pill?: boolean; placeholder?: string; right?: React.ReactNode };
+export function Input({ label, value, onChange, password = false, email = false, numeric = false, multiline = false, maxLength = 120, pill = false, placeholder, right }: InputProps) {
   const [hidden, setHidden] = useState(true);
-  const accessory = password ? <Pressable accessibilityRole="button" accessibilityLabel={hidden ? 'Mostrar senha' : 'Ocultar senha'} onPress={() => setHidden(!hidden)} hitSlop={8} style={{ paddingHorizontal: 14, minHeight: 44, justifyContent: 'center' }}><Text style={{ color: colors.green, fontWeight: '700' }}>{hidden ? 'Mostrar' : 'Ocultar'}</Text></Pressable> : right;
-  return <View style={{ gap: 6 }}><Text style={s.label}>{label}</Text><View style={[s.input, { flexDirection: 'row', alignItems: 'center', padding: 0, paddingVertical: 0, paddingHorizontal: 0 }]}><TextInput accessibilityLabel={label} placeholder={placeholder} placeholderTextColor={colors.muted} style={{ flex: 1, alignSelf: 'stretch', paddingHorizontal: 16, paddingVertical: 14, fontSize: 16, color: colors.text, minHeight: 50, outlineWidth: 0 }} value={value} onChangeText={onChange} secureTextEntry={password && hidden} keyboardType={email ? 'email-address' : numeric ? 'number-pad' : 'default'} autoCapitalize={email || password ? 'none' : 'sentences'} autoCorrect={!email && !password} multiline={multiline} maxLength={maxLength} />{accessory}</View></View>;
+  const theme = useTheme();
+  const accessory = password ? <Pressable accessibilityRole="button" accessibilityLabel={hidden ? 'Mostrar senha' : 'Ocultar senha'} onPress={() => setHidden(!hidden)} hitSlop={8} style={{ paddingHorizontal: 14, minHeight: 44, justifyContent: 'center' }}><MaterialCommunityIcons name={hidden ? 'eye-off-outline' : 'eye-outline'} size={22} color={colors.dark} /></Pressable> : right;
+  return <View style={{ gap: 6 }}><Text style={[s.label, pill && { paddingLeft: 14 }]}>{label}</Text><View style={[s.input, { backgroundColor: theme.mint, flexDirection: 'row', alignItems: 'center', padding: 0, paddingVertical: 0, paddingHorizontal: 0 }, pill && { borderRadius: 999 }]}><TextInput accessibilityLabel={label} placeholder={placeholder} placeholderTextColor={colors.muted} style={{ flex: 1, alignSelf: 'stretch', paddingHorizontal: pill ? 22 : 16, paddingVertical: 14, fontSize: 16, color: colors.text, minHeight: 50, outlineWidth: 0 }} value={value} onChangeText={onChange} secureTextEntry={password && hidden} keyboardType={email ? 'email-address' : numeric ? 'number-pad' : 'default'} autoCapitalize={email || password ? 'none' : 'sentences'} autoCorrect={!email && !password} multiline={multiline} maxLength={maxLength} />{accessory}</View></View>;
 }
 export type Place = { city: string; state: string; cityCode: string };
+// 0 = same city, 1 = same state, 2 = same region (first IBGE digit), 3 = elsewhere.
+export function proximity(item: Pick<Place, 'state' | 'cityCode'>, place: Place) {
+  if (place.cityCode && item.cityCode === place.cityCode) return 0;
+  if (item.state === place.state) return 1;
+  if (place.cityCode && item.cityCode && item.cityCode[0] === place.cityCode[0]) return 2;
+  return 3;
+}
 export async function fetchPlace(postalCode: string): Promise<Place> {
   const digits = postalCode.replace(/\D/g, '');
   if (digits.length !== 8) throw Error('Informe um CEP com 8 números.');
@@ -32,9 +41,10 @@ export function useAction() {
   };
   return { busy, message, setMessage, run };
 }
-export function Feedback({ message }: { message: string }) { return message ? <Text accessibilityRole="alert" style={s.notice}>{message}</Text> : null; }
+export function Feedback({ message }: { message: string }) { const sh = useSharedSheet(); return message ? <Text accessibilityRole="alert" style={sh.notice}>{message}</Text> : null; }
 export function StoredPhoto({ path, label, style }: { path: string; label: string; style?: StyleProp<ImageStyle> }) {
-  if (style) return <View style={[style as StyleProp<ViewStyle>, { overflow: 'hidden', backgroundColor: colors.soft, alignItems: 'center', justifyContent: 'center' }]}><StoredPhotoContent path={path} label={label} fill /></View>;
+  const theme = useTheme();
+  if (style) return <View style={[style as StyleProp<ViewStyle>, { overflow: 'hidden', backgroundColor: theme.soft, alignItems: 'center', justifyContent: 'center' }]}><StoredPhotoContent path={path} label={label} fill /></View>;
   return <StoredPhotoContent path={path} label={label} />;
 }
 function StoredPhotoContent({ path, label, fill = false }: { path: string; label: string; fill?: boolean }) {

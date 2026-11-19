@@ -34,7 +34,8 @@ test('pagamento confere valor, moeda, referência e recebedor', () => {
   const record = { id: 'donation-1', amountCents: 2550 };
   assert.ok(paymentMatches(payment, record, '123'));
   for (const change of [{ currency_id: 'USD' }, { transaction_amount: 2.55 }, { external_reference: 'other' }, { collector_id: 999 }]) assert.equal(paymentMatches({ ...payment, ...change }, record, '123'), false);
-  for (const invalid of [0, -100, 1.5, 1000001, NaN]) assert.throws(() => cents(invalid));
+  for (const invalid of [0, -100, 1.5, 100, 499, 1000001, NaN]) assert.throws(() => cents(invalid));
+  for (const valid of [500, 2550, 1000000]) assert.equal(cents(valid), valid);
 });
 test('webhook valida assinatura HMAC e recusa adulteração/replay antigo', () => {
   const secret = 'test-secret'; const now = 1800000000000; const ts = String(now);

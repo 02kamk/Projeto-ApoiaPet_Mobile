@@ -2,29 +2,25 @@
 const fs = require('node:fs');
 const vm = require('node:vm');
 const ts = require('typescript');
-const context = { exports: {}, Date, Error };
-vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/donations/domain.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context);
-const { parseAmount, places, createDonation, finishDonation } = context.exports;
+const load = file => { const context = { exports: {}, Number, Math, Error }; vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, context); return context.exports; };
+const { parseAmount, donationCounts } = load('src/donations/domain.ts');
 assert.equal(parseAmount('25,50'), 2550);
 assert.equal(parseAmount('25.50'), 2550);
 assert.equal(parseAmount('1'), 100);
 assert.equal(parseAmount('10000'), 1000000);
 for (const invalid of ['', '0', '-1', '1e2', 'Infinity', '25,555', '1.000,00', '10000,01']) assert.throws(() => parseAmount(invalid));
-for (const method of ['Pix', 'Cart\u00e3o']) {
-  const draft = createDonation('test', places[0].id, places[0].needs[0], '25,50', method);
-  assert.equal(draft.amountCents, 2550);
-  assert.equal(draft.status, 'Aguardando simula\u00e7\u00e3o');
-  assert.equal(draft.placeId, places[0].id);
-  const confirmed = finishDonation([draft], draft.id, 'confirm');
-  assert.equal(confirmed[0].status, 'Confirmada (simula\u00e7\u00e3o)');
-  assert.equal(finishDonation(confirmed, draft.id, 'confirm'), confirmed);
-  assert.throws(() => finishDonation(confirmed, draft.id, 'cancel'));
-  const cancelled = finishDonation([draft], draft.id, 'cancel');
-  assert.equal(cancelled[0].status, 'Cancelada');
-  assert.throws(() => finishDonation(cancelled, draft.id, 'confirm'));
-  assert.equal(draft.status, 'Aguardando simula\u00e7\u00e3o');
-}
-assert.throws(() => createDonation('x', 'missing', places[0].needs[0], '25', 'Pix'));
-assert.throws(() => createDonation('x', places[0].id, 'missing', '25', 'Pix'));
-assert.throws(() => finishDonation([], 'missing', 'confirm'));
-console.log('PASS: amount validation, Pix/card records, cancellation, idempotent confirmation and immutable history.');
+// Sem aprovação: doação de teste conta na hora (inclusive registros antigos "pendentes").
+assert.equal(donationCounts({ mode: 'test', status: 'confirmed' }), true);
+assert.equal(donationCounts({ mode: 'test', status: 'pending' }), true);
+assert.equal(donationCounts({ mode: 'test', status: 'cancelled' }), false);
+assert.equal(donationCounts({ mode: 'mercadopago', status: 'pending' }), false);
+assert.equal(donationCounts({ mode: 'mercadopago', status: 'confirmed' }), true);
+console.log('PASS: validação de valor e doações sem fluxo de aprovação.');
+const { levelFor } = load('src/donations/levels.ts');
+assert.equal(levelFor(0).level.id, 'none'); assert.equal(levelFor(0).next.id, 'bronze');
+assert.equal(levelFor(5000).progress, 0.5);
+assert.equal(levelFor(10000).level.id, 'bronze'); assert.equal(levelFor(10000).missingCents, 40000);
+assert.equal(levelFor(50000).level.id, 'prata'); assert.equal(levelFor(100000).level.id, 'ouro');
+assert.equal(levelFor(500000).level.id, 'diamante'); assert.equal(levelFor(999999).progress, 1); assert.equal(levelFor(999999).next, null);
+assert.equal(levelFor(-5).level.id, 'none'); assert.equal(levelFor(NaN).progress, 0);
+console.log('PASS: níveis Bronze/Prata/Ouro/Diamante e progresso até a próxima meta.');
