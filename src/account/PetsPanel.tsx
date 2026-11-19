@@ -138,7 +138,7 @@ function Carousel({ title, pets, ong, near, onOpen }: { title: string; pets: Lis
             <Text style={styles.glassTitle} numberOfLines={1}>{pet.name}<Text style={styles.glassAge}>, {pet.age}</Text></Text>
             <View style={styles.glassRow}><MaterialCommunityIcons name="map-marker-outline" size={13} color={colors.white} /><Text style={styles.glassText} numberOfLines={1}>{ong ? pet.city : `${pet.city} · ${pet.ongName}`}</Text></View>
           </View>
-          <View style={styles.arrow}><MaterialCommunityIcons name="chevron-right" size={20} color={colors.white} /></View>
+          <View style={styles.arrow}><MaterialCommunityIcons name="chevron-right" size={22} color="rgba(37, 37, 37, 0.38)" /></View>
         </>}>
           {pet.status !== 'available' ? <View style={styles.slideBadge}><Badge text={petStatus[pet.status]} /></View> : near(pet) && <Text style={[styles.slideBadge, styles.nearTag]}>Perto de você</Text>}
         </GlassPhoto>
@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   nearTag: { paddingVertical: 3, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(255, 255, 255, 0.82)', color: colors.dark, fontSize: 11, fontWeight: '700', letterSpacing: 0.2, overflow: 'hidden' },
   glass: { position: 'absolute', left: 10, right: 10, bottom: 10, borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12, gap: 2, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255, 255, 255, 0.35)' },
   glassSplit: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingRight: 8 },
-  arrow: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.25)', alignItems: 'center', justifyContent: 'center' },
+  arrow: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(255, 255, 255, 0.92)', alignItems: 'center', justifyContent: 'center' },
   glassLarge: { left: 14, right: 14, bottom: 14, borderRadius: 20, paddingVertical: 12, paddingHorizontal: 16, gap: 4 },
   glassTitle: { color: colors.white, fontSize: 16, fontWeight: '800', textShadowColor: 'rgba(0, 0, 0, 0.25)', textShadowRadius: 4 },
   glassAge: { fontSize: 13, fontWeight: '500', color: colors.white },
