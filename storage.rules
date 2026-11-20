@@ -15,6 +15,10 @@ service firebase.storage {
       allow write: if signedIn() && request.auth.uid == uid && resource == null && image()
         && firestore.get(/databases/(default)/documents/profiles/$(uid)).data.role == 'donor';
     }
+    match /avatars/{uid}/{file} {
+      allow read: if signedIn();
+      allow write: if signedIn() && request.auth.uid == uid && resource == null && image();
+    }
     match /{path=**} { allow read, write: if false; }
   }
 }

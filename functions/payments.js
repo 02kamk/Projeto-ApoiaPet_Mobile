@@ -102,8 +102,10 @@ export const createDonation = callable(async (uid, data) => {
       if (old.ongId !== ongId || old.amountCents !== amountCents || old.mode !== data.mode) throw Error('Este identificador já foi usado para outra contribuição.');
       return old;
     }
+    const now = new Date().toISOString();
+    // Não existe aprovação de doação: a doação de teste já nasce concluída.
     transaction.create(ref, { donorId: uid, donorName: donor.fullName, ongId, ongName: ong.name, amountCents, mode: data.mode,
-      status: data.mode === 'test' ? 'pending' : 'creating', createdAt: new Date().toISOString(), checkoutUrl: '' });
+      status: data.mode === 'test' ? 'confirmed' : 'creating', createdAt: now, ...(data.mode === 'test' && { confirmedAt: now }), checkoutUrl: '' });
     return null;
   });
   if (existing) {
@@ -135,16 +137,6 @@ export const createDonation = callable(async (uid, data) => {
     throw error;
   }
 }, secretOptions);
-export const simulateDonation = callable(async (uid, { id, status }) => {
-  if (!['confirmed', 'cancelled'].includes(status)) throw Error('Ação inválida.');
-  const ref = db.doc(`donations/${safeId(id)}`);
-  await db.runTransaction(async transaction => {
-    const record = (await transaction.get(ref)).data();
-    if (!record || record.donorId !== uid || record.mode !== 'test' || record.status !== 'pending') throw Error('Somente contribuições de teste pendentes podem ser simuladas.');
-    transaction.update(ref, { status, updatedAt: new Date().toISOString() });
-  });
-  return { ok: true };
-});
 export const mercadoPagoWebhook = onRequest({ secrets: [clientSecret, webhookSecret] }, async (request, response) => {
   if (request.method !== 'POST') { response.sendStatus(405); return; }
   const paymentId = String(request.query['data.id'] || '');

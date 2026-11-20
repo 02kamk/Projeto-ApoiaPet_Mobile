@@ -58,7 +58,6 @@ try {
   const history = await getDocs(query(collection(donor.db, 'applications'), where('applicantId', '==', donor.uid)));
   assert.equal(history.docs.find(item => item.id === appId).data().status, 'adopted');
   const donation = await donor.call('createDonation', { ongId: ong.uid, amountCents: 2500, mode: 'test', requestId: `smoke-request-${stamp}` });
-  await donor.call('simulateDonation', { id: donation.id, status: 'confirmed' });
   const received = await getDocs(query(collection(ong.db, 'donations'), where('ongId', '==', ong.uid)));
   assert.equal(received.docs.find(item => item.id === donation.id).data().status, 'confirmed');
   await assert.rejects(getDoc(doc(outsider.db, 'donations', donation.id)));

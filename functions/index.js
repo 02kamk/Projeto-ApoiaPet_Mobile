@@ -22,10 +22,11 @@ export const saveProfile = callable(async (uid, data) => {
   const location = await address(data.cep);
   if (!['ong', 'donor'].includes(data.role)) throw Error('Escolha seu perfil.');
   const publicName = data.role === 'ong' ? core.text(data.ongName, 'Nome da ONG') : name;
+  const org = data.role === 'ong' && (data.cnpj || data.legalName) ? { cnpj: data.cnpj ? core.cnpj(data.cnpj) : '', legalName: data.legalName ? core.text(data.legalName, 'Razão social', 150) : '' } : null;
   await db.runTransaction(async transaction => {
     const current = await transaction.get(db.doc(`profiles/${uid}`));
     if (current.exists && current.data().role !== data.role) throw Error('Não é possível trocar o tipo de conta.');
-    transaction.set(db.doc(`profiles/${uid}`), { name: publicName, role: data.role, city: location.city, state: location.state, cityCode: location.cityCode });
+    transaction.set(db.doc(`profiles/${uid}`), { name: publicName, role: data.role, city: location.city, state: location.state, cityCode: location.cityCode, ...(org && { org }) }, { merge: true });
     transaction.set(db.doc(`privateProfiles/${uid}`), { fullName: name, phone, ...location });
   });
   return { ok: true };
@@ -35,6 +36,29 @@ async function validatePhoto(path, prefix) {
   const [metadata] = await getStorage().bucket().file(path).getMetadata();
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(metadata.contentType) || Number(metadata.size) > 5 * 1024 * 1024) throw Error('Use uma foto JPG, PNG ou WebP de até 5 MB.');
 }
+// Foto de perfil (doador ou ONG). photoPath vazio remove a foto.
+export const setProfilePhoto = callable(async (uid, data) => {
+  const field = data.kind === 'cover' ? 'coverPath' : 'photoPath';
+  const photoPath = typeof data.photoPath === 'string' ? data.photoPath : '';
+  if (photoPath) await validatePhoto(photoPath, `avatars/${uid}/`);
+  const ref = db.doc(`profiles/${uid}`);
+  const previous = await db.runTransaction(async transaction => {
+    const current = await transaction.get(ref);
+    if (!current.exists) throw Error('Complete seu cadastro antes de adicionar uma foto.');
+    if (field === 'coverPath' && current.data().role !== 'ong') throw Error('Somente ONGs têm foto de capa.');
+    transaction.update(ref, { [field]: photoPath });
+    return current.data()[field] || '';
+  });
+  if (previous && previous !== photoPath) { try { await getStorage().bucket().file(previous).delete(); } catch { /* arquivo antigo já removido */ } }
+  return { ok: true };
+});
+// Ficha institucional e equipe da ONG (dados públicos do perfil).
+export const saveOrgInfo = callable(async (uid, data) => {
+  await getProfile(uid, 'ong');
+  const org = core.orgInfo(data);
+  await db.doc(`profiles/${uid}`).update({ org });
+  return { ok: true };
+});
 export const savePet = callable(async (uid, data) => {
   const profile = await getProfile(uid, 'ong');
   const fields = {
@@ -56,9 +80,22 @@ export const savePet = callable(async (uid, data) => {
     if (data.id && (!previous.exists || previous.data().ongId !== uid)) throw Error('Animal não encontrado nesta ONG.');
     const old = previous.data();
     transaction.set(ref, { ...fields, ongId: uid, ongName: profile.name, city: profile.city, state: profile.state, cityCode: profile.cityCode,
-      status: old?.status || 'available', listed: old?.listed ?? true, activeApplicationId: old?.activeApplicationId || null, updatedAt: new Date().toISOString() }, { merge: true });
+      status: old?.status || 'available', listed: old?.listed ?? true, activeApplicationId: old?.activeApplicationId || null, createdAt: old?.createdAt || old?.updatedAt || new Date().toISOString(), updatedAt: new Date().toISOString() }, { merge: true });
   });
   return { id: ref.id };
+});
+// Funcionário da equipe responsável pelo animal ('' remove).
+export const setPetCaretaker = callable(async (uid, data) => {
+  const profile = await getProfile(uid, 'ong');
+  const caretaker = typeof data.caretaker === 'string' ? data.caretaker.trim() : '';
+  if (caretaker && !(profile.org?.team || []).some(member => member.name === caretaker)) throw Error('Escolha alguém da equipe da ONG.');
+  const ref = db.doc(`pets/${core.id(data.petId)}`);
+  await db.runTransaction(async transaction => {
+    const pet = (await transaction.get(ref)).data();
+    if (!pet || pet.ongId !== uid) throw Error('Animal não encontrado nesta ONG.');
+    transaction.update(ref, { caretaker });
+  });
+  return { ok: true };
 });
 export const togglePet = callable(async (uid, { petId }) => {
   await getProfile(uid, 'ong');
@@ -148,4 +185,4 @@ export const sendMessage = callable(async (uid, data) => {
   });
   return { ok: true };
 });
-export { createDonation, startMercadoPagoConnection, mercadoPagoCallback, mercadoPagoWebhook, simulateDonation } from './payments.js';
+export { createDonation, startMercadoPagoConnection, mercadoPagoCallback, mercadoPagoWebhook } from './payments.js';
