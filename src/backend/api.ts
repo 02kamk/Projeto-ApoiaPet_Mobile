@@ -3,6 +3,13 @@ import { auth } from './firebase';
 // Backend on Vercel (backend/ folder). Example: https://apoiapet-api.vercel.app
 const apiUrl = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/+$/, '');
 export const apiConfigured = /^https?:\/\//.test(apiUrl);
+export const apiBase = apiUrl;
+// Current Firebase ID token (cached by Firebase and refreshed when close to expiring).
+export async function idToken() {
+  const user = auth?.currentUser;
+  if (!user) throw Error('Entre na sua conta.');
+  return user.getIdToken();
+}
 
 // Every request carries the user's Firebase ID token; the server verifies it.
 export async function apiFetch(path: string, init: RequestInit = {}) {

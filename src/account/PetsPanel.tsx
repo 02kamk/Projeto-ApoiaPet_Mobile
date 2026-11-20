@@ -217,6 +217,13 @@ function Carousel({ title, pets, ong, near, onOpen, header, compact = false }: {
 }
 function GlassPhoto({ path, label, panel, panelStyle, children }: React.PropsWithChildren<{ path: string; label: string; panel: React.ReactNode; panelStyle: StyleProp<ViewStyle> }>) {
   const target = useRef<React.ComponentRef<typeof View>>(null);
+  // Android: a live blur per card is re-rendered every frame while the carousel animates, which
+  // made scrolling stutter on phones. A translucent panel looks close and costs nothing.
+  if (Platform.OS === 'android') return <>
+    <StoredPhoto path={path} label={label} style={StyleSheet.absoluteFill} />
+    {children}
+    <View style={[panelStyle, { backgroundColor: 'rgba(28, 28, 28, 0.55)' }]}>{panel}</View>
+  </>;
   return <>
     <BlurTargetView ref={target} style={StyleSheet.absoluteFill}>
       <StoredPhoto path={path} label={label} style={StyleSheet.absoluteFill} />

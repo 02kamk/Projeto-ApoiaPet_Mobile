@@ -145,7 +145,7 @@ function Welcome({ onLogin, onRegister }: { onLogin: () => void; onRegister: () 
       </LinearGradient></Defs>
       <Rect width="100%" height="100%" fill="url(#welcome-fade)" />
     </Svg></View>
-    <View style={styles.logo}><Text style={styles.logoIcon}>♥</Text><View style={styles.logoPaws}><MaterialCommunityIcons name="paw" size={24} color={colors.white} style={styles.pawLow} /><MaterialCommunityIcons name="paw" size={24} color={colors.white} style={styles.pawHigh} /></View></View>
+    <Image source={require('../../assets/logo-mark.png')} style={styles.logo} accessibilityIgnoresInvertColors accessible={false} />
     <Text style={styles.brand}><Text style={{ color: colors.header }}>Apoia</Text>Pet</Text>
     <Text style={styles.tagline}>Um novo começo para cada patinha.{'\n'}Adote, doe e acompanhe abrigos perto de você.</Text>
     <View style={styles.welcomeActions}>
@@ -198,11 +198,7 @@ const styles = StyleSheet.create({
   greeting: { minHeight: 22, lineHeight: 22, paddingHorizontal: 8 },
   welcomePhoto: { position: 'absolute', top: 0, left: 0, width: '100%', height: '70%' },
   welcome: { flex: 1, overflow: 'hidden', backgroundColor: colors.green, alignItems: 'center', justifyContent: 'flex-end', padding: 32, paddingBottom: 48, gap: 18 },
-  logo: { width: 150, height: 130, alignItems: 'center', justifyContent: 'center' },
-  logoIcon: { fontSize: 140, lineHeight: 150, color: colors.header },
-  logoPaws: { position: 'absolute', top: 49, width: 44, height: 42 },
-  pawLow: { position: 'absolute', left: 0, bottom: 0, transform: [{ rotate: '25deg' }] },
-  pawHigh: { position: 'absolute', right: 0, top: 0, transform: [{ rotate: '25deg' }] },
+  logo: { width: 130, height: 130 },
   brand: { fontSize: 46, fontWeight: '900', color: colors.white, letterSpacing: 0.5 },
   tagline: { color: colors.mint, fontSize: 16, lineHeight: 23, textAlign: 'center', marginBottom: 18 },
   welcomeActions: { width: '100%', maxWidth: 260, gap: 10 },

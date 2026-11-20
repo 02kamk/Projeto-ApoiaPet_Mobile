@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, ImageStyle, Pressable, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, ImageStyle, Pressable, StyleProp, StyleSheet, Text, TextInput, View, ViewStyle } from 'react-native';
 import { errorMessage } from '../backend/firebase';
-import { photoUri } from '../backend/photos';
+import { Image as CachedImage } from 'expo-image';
+import { PhotoSource, photoSource } from '../backend/photos';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, styles as s, useSharedSheet, useTheme } from '../ui';
 type InputProps = { label: string; value: string; onChange: (value: string) => void; password?: boolean; email?: boolean; numeric?: boolean; multiline?: boolean; maxLength?: number; pill?: boolean; placeholder?: string; right?: React.ReactNode };
@@ -48,13 +49,17 @@ export function StoredPhoto({ path, label, style }: { path: string; label: strin
   return <StoredPhotoContent path={path} label={label} />;
 }
 function StoredPhotoContent({ path, label, fill = false }: { path: string; label: string; fill?: boolean }) {
-  const [loaded, setLoaded] = useState<{ path: string; uri: string; error: string } | null>(null);
+  const [loaded, setLoaded] = useState<{ path: string; source: PhotoSource | null; error: string } | null>(null);
   useEffect(() => {
     let active = true;
-    if (path) photoUri(path).then(uri => { if (active) setLoaded({ path, uri, error: '' }); }).catch(() => { if (active) setLoaded({ path, uri: '', error: 'Não foi possível carregar a foto.' }); });
+    if (path) photoSource(path).then(source => { if (active) setLoaded({ path, source, error: '' }); }).catch(() => { if (active) setLoaded({ path, source: null, error: 'Não foi possível carregar a foto.' }); });
     return () => { active = false; };
   }, [path]);
   if (!path) return <Text style={s.muted}>Sem foto cadastrada.</Text>;
   if (loaded?.path !== path) return <ActivityIndicator accessibilityLabel="Carregando foto" />;
-  return loaded.error ? <Text style={s.muted}>{loaded.error}</Text> : <Image accessibilityLabel={label} source={{ uri: loaded.uri }} style={fill ? StyleSheet.absoluteFill : { width: '100%', height: 240, borderRadius: 14 }} resizeMode="cover" />;
+  if (!loaded.source) return <Text style={s.muted}>{loaded.error}</Text>;
+  // expo-image decodes off the JS thread, downsamples to the view size and caches on disk.
+  return <CachedImage accessibilityLabel={label} source={loaded.source} cachePolicy="memory-disk" recyclingKey={path} transition={150} contentFit="cover"
+    onError={() => setLoaded({ path, source: null, error: 'Não foi possível carregar a foto.' })}
+    style={fill ? StyleSheet.absoluteFill : { width: '100%', height: 240, borderRadius: 14 }} />;
 }
