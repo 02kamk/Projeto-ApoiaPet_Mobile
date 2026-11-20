@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Health, testOptions, testResults, vaccineOptions } from '../../functions/health';
+import { Health, testOptions, testResults, vaccineOptions } from '../../backend/lib/health';
 import { colors, styles as s, themedStyles, useTheme } from '../ui';
 import { Input } from './components';
 

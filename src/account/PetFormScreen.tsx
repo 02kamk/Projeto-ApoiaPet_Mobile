@@ -8,7 +8,7 @@ import { Listing } from '../backend/data';
 import { call, useSession } from '../backend/session';
 import { Photo, pickPhoto, uploadPhoto } from '../backend/photos';
 import { Feedback, Input, StoredPhoto, useAction } from './components';
-import { emptyHealth, Health, healthForEditing } from '../../functions/health';
+import { emptyHealth, Health, healthForEditing } from '../../backend/lib/health';
 import { HealthFields } from './HealthFields';
 const blank = { name: '', species: 'Gato', age: '', description: '' };
 function leave() { if (router.canGoBack()) router.back(); else router.replace('/?tab=pets'); }
@@ -57,7 +57,7 @@ export default function PetFormScreen() {
       <Feedback message={action.message} />
       <Button disabled={action.busy} title={action.busy ? 'Salvando…' : editing ? 'Salvar' : 'Publicar'} onPress={() => void action.run(async () => {
         if (Object.values(fields).some(value => !value.trim())) throw Error('Preencha nome, idade e descrição.');
-        const photoPath = photo ? await uploadPhoto(photo, `pets/${user.uid}`) : editing?.photoPath;
+        const photoPath = photo ? await uploadPhoto(photo, 'pet') : editing?.photoPath;
         if (!photoPath) throw Error('Adicione uma foto do animal.');
         await call('savePet', { ...fields, health, photoPath, ...(editing ? { id: editing.id } : {}) });
         leave();

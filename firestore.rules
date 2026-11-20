@@ -25,11 +25,6 @@ service cloud.firestore {
       allow write: if false;
     }
     match /paymentConnections/{uid} { allow read: if signedIn() && request.auth.uid == uid; allow write: if false; }
-    // Legacy simulation records remain readable to their participants during migration.
-    match /testPayments/{id} {
-      allow read: if signedIn() && (resource.data.ongId == request.auth.uid || resource.data.donorId == request.auth.uid);
-      allow write: if false;
-    }
     // Includes OAuth states and recipient tokens: server only.
     match /{document=**} { allow read, write: if false; }
   }

@@ -1,23 +1,45 @@
 # Ativação do ApoiaPet
 
-O código usa Firebase Authentication, Firestore, Storage e Cloud Functions em `southamerica-east1`. O projeto Firebase ainda precisa ser criado pelo proprietário. Não há conexão de produção nem credenciais configuradas neste clone.
+Arquitetura:
 
-## 1. Criar e configurar o Firebase
+- **Firebase** (plano gratuito Spark): Authentication (login) e Firestore (banco). O app lê o Firestore diretamente, protegido por `firestore.rules`, e nunca grava nele.
+- **Vercel** (pasta `backend/`): API que valida e grava todos os dados com `firebase-admin`, região `gru1` (São Paulo).
+- **Vercel Blob** (store **privado**): fotos. Só a API envia e entrega as fotos, aplicando as regras de acesso.
+
+```
+App (Expo) ──login──▶ Firebase Auth
+    │ ──leitura──▶ Firestore (firestore.rules)
+    └─ token ──▶ Vercel /api/call, /api/upload, /api/photo ──▶ Firestore (admin) + Blob privado
+Mercado Pago ──▶ /api/mp-callback, /api/mp-webhook
+```
+
+## 1. Criar e configurar
+
+### Firebase
 
 1. No [Console Firebase](https://console.firebase.google.com/), crie um projeto e cadastre um aplicativo **Web**. A configuração do SDK JavaScript também é usada pelo Expo no Android/iOS.
 2. Ative Authentication → Sign-in method → **E-mail/senha**. Adicione `localhost` aos domínios autorizados para desenvolvimento e o domínio HTTPS da aplicação quando publicar.
-3. Em Authentication → Settings → Password policy, configure o modo **Require**, mínimo **10** caracteres, letra maiúscula, letra minúscula, número e caractere não alfanumérico. Essa política é obrigatória para também impedir senhas fracas criadas fora do aplicativo e na recuperação de senha. O app mostra e valida os cinco requisitos antes do cadastro.
-4. Crie o Firestore no modo de produção e ative Storage. Cloud Functions e Storage podem exigir o plano Blaze e faturamento. Confira as condições no Console antes de ativar.
-5. Copie `.env.example` para `.env.local` e preencha `apiKey`, `authDomain`, `projectId`, `appId` e `storageBucket` a partir da configuração Web. Mantenha `EXPO_PUBLIC_PAYMENTS_ENABLED=false` até homologar o Mercado Pago. Não use valores de exemplo nem chaves de conta de serviço.
-6. Instale Firebase CLI pela fonte oficial (`npm.cmd install --global firebase-tools`) e entre com `firebase login`. Use Node 22 para as funções; o aplicativo pode ser desenvolvido com a versão local do Node.
-7. Na pasta do app, execute `npm.cmd ci` e `npm.cmd --prefix functions ci`.
-8. Copie `functions/.env.example` para `functions/.env.SEU_PROJECT_ID`; use `PAYMENTS_ENABLED=false`, seu domínio HTTPS em `APP_URL` e `https://southamerica-east1-SEU_PROJECT_ID.cloudfunctions.net` em `BACKEND_URL`.
-9. As funções de pagamento referenciam dois segredos do Secret Manager. Configure `firebase functions:secrets:set MP_CLIENT_SECRET --project SEU_PROJECT_ID` e `firebase functions:secrets:set MP_WEBHOOK_SECRET --project SEU_PROJECT_ID`. Se ainda não criou a aplicação Mercado Pago, use valores temporários **NOT_CONFIGURED** e mantenha os dois indicadores de pagamento desativados. Substitua-os pelos segredos verdadeiros antes da homologação. Nunca envie esses valores pelo chat ou os coloque em `EXPO_PUBLIC_*`.
-10. Publique o backend e as regras: `firebase deploy --only functions,firestore:rules,storage --project SEU_PROJECT_ID`. Autorize o acesso entre Storage e Firestore solicitado pelo CLI para que as regras consigam verificar a ONG participante.
-11. Para leitura autenticada das fotos na web, copie `storage.cors.example.json`, ajuste o domínio e aplique com Google Cloud CLI: `gcloud storage buckets update gs://SEU_BUCKET --cors-file=storage.cors.example.json`. Mantenha somente as origens utilizadas. A autorização continua sendo feita pelas regras de Storage.
-12. Reinicie o Metro: `npm.cmd run web -- --localhost --port 8081 --clear`. Abra http://localhost:8081.
+3. Em Authentication → Settings → Password policy, configure o modo **Require**, mínimo **10** caracteres, letra maiúscula, letra minúscula, número e caractere não alfanumérico.
+4. Crie o Firestore no modo de produção (região `southamerica-east1`). Não é preciso ativar Storage nem Cloud Functions.
+5. Publique as regras: `firebase deploy --only firestore:rules --project SEU_PROJECT_ID` (Firebase CLI: `npm.cmd install --global firebase-tools` e `firebase login`), ou cole o conteúdo de `firestore.rules` em Firestore → Regras.
+6. Em Configurações do projeto → Contas de serviço, clique em **Gerar nova chave privada**. Guarde o JSON com cuidado: ele dá acesso total ao projeto. Ele vai **somente** para a variável `FIREBASE_SERVICE_ACCOUNT` da Vercel, nunca para o app ou o Git.
 
-O login só requer Authentication, mas cadastro completo, candidaturas, chat, agendamento e doações exigem as funções publicadas. Apenas adicionar o arquivo `.env.local` não publica o backend.
+### Vercel
+
+1. Na [Vercel](https://vercel.com/), importe este repositório como um projeto novo e defina **Root Directory = `backend`**. Framework: **Other**. Não há comando de build.
+2. Em Storage, crie um **Blob store privado** e conecte-o ao projeto. Na Vercel, a autenticação do Blob é automática (OIDC).
+3. Em Settings → Environment Variables, configure as variáveis listadas em `backend/.env.example`:
+   - `FIREBASE_SERVICE_ACCOUNT`: o JSON da conta de serviço, em uma linha;
+   - `ALLOWED_ORIGINS`: domínios do app web, se houver (o app nativo não precisa);
+   - `PAYMENTS_ENABLED=false` até homologar o Mercado Pago (ver [mercado-pago.md](mercado-pago.md)).
+4. Faça o deploy. A URL do projeto (ex.: `https://apoiapet-api.vercel.app`) é a `EXPO_PUBLIC_API_URL` do app.
+
+### App
+
+1. Copie `.env.example` para `.env.local` e preencha `apiKey`, `authDomain`, `projectId` e `appId` da configuração Web, e `EXPO_PUBLIC_API_URL`. Mantenha `EXPO_PUBLIC_PAYMENTS_ENABLED=false` até homologar o Mercado Pago. Não coloque segredos em `EXPO_PUBLIC_*`: essas variáveis vão dentro do app.
+2. Execute `npm.cmd ci` e reinicie o Metro: `npm.cmd run web -- --localhost --port 8081 --clear`.
+
+O login só requer o Firebase, mas cadastro, animais, candidaturas, chat, agendamento, fotos e doações exigem a API publicada.
 
 ## 2. O que fica em cada lugar
 
@@ -28,14 +50,14 @@ O login só requer Authentication, mas cadastro completo, candidaturas, chat, ag
 | Nome completo do responsável, telefone e CEP/endereço | `privateProfiles/{uid}`, somente o titular e o backend. |
 | Animais, foto, vacinas e situação | `pets/{id}`; catálogo lê `listed=true`, incluindo “Em processo de adoção”. ONG também lê seus pausados/adotados. |
 | Candidatura, contato compartilhado, respostas e histórico | `applications/{petId_uid}`; somente candidato e ONG escolhida. Não há aprovação automática. |
-| Fotos da moradia | Storage `homes/{uid}/{applicationId}/…`; leitura apenas do titular e da ONG da candidatura. Sem URL permanente de download nas telas. |
-| Fotos dos animais | Storage `pets/{ongUid}/…`; disponíveis a usuários autenticados. JPG/PNG/WebP, até 5 MB por arquivo. |
+| Fotos da moradia | Blob privado `homes/{uid}/{applicationId}/…`; `/api/photo` entrega apenas ao titular e à ONG da candidatura. Não existe URL pública. |
+| Fotos dos animais e de perfil | Blob privado `pets/{ongUid}/…` e `avatars/{uid}/…`; entregues pela API a usuários autenticados. O app reduz para até 1600 px em JPEG (sem metadados de localização); o servidor confere o tipo real do arquivo (JPG/PNG/WebP, até 4 MB) e escolhe o caminho. |
 | Mensagens | `applications/{id}/messages`; somente participantes. Envio após aprovação, arquivado ao concluir. |
 | Retirada e avisos | Data/local na candidatura. Agenda mensal e avisos internos para os próximos 7 dias, em horário de Brasília. Não há push, SMS ou Google Calendar. |
 | Doações e identificação do doador | `donations/{id}`; somente doador e ONG envolvidos. Total de simulações separado do total real. |
-| Tokens OAuth e estados de autorização | `paymentCredentials` e `oauthStates`; acesso negado ao cliente. Segredos da aplicação ficam no Secret Manager. |
+| Tokens OAuth e estados de autorização | `paymentCredentials` e `oauthStates`; acesso negado ao cliente. Segredos ficam nas variáveis de ambiente da Vercel. |
 
-Todas as gravações de negócio passam por funções autenticadas. As regras negam gravações diretas do cliente. O servidor valida os dados, deriva titular/ONG da sessão e protege transições com transações. Nenhuma função administrativa de adoção decide elegibilidade automaticamente.
+Todas as gravações passam pela API, que verifica o token do Firebase (`Authorization: Bearer`). As regras negam gravações diretas do cliente. O servidor valida os dados, deriva titular/ONG da sessão e protege transições com transações. Nenhuma função administrativa de adoção decide elegibilidade automaticamente.
 
 ## 3. Cadastro e busca por CEP
 
@@ -63,12 +85,12 @@ Leia também [docs/mercado-pago.md](mercado-pago.md). Há integração de códig
 
 ## Verificação local e limites
 
-Execute `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run check:backend` e `npm.cmd --prefix functions run check`. `npx.cmd expo export --platform web --platform android` verifica os pacotes.
+Execute `npm.cmd run typecheck`, `npm.cmd run lint`, `npm.cmd run check:donations` e `npm.cmd run check:backend` (instale antes com `npm.cmd --prefix backend ci`). `npx.cmd expo export --platform web --platform android` verifica os pacotes.
 
-Os testes exercitam os handlers reais das funções com fronteira de Firestore/Storage em memória, incluindo propriedade da candidatura, reserva, retirada, encerramento de concorrentes, desistência e histórico de doações. Também testam validações e HMAC. Eles não substituem homologação com Authentication, regras Firestore/Storage, CORS, OAuth, checkout e webhook publicados. Essa homologação depende da criação dos projetos e das credenciais do proprietário.
+Os testes exercitam os handlers e as rotas reais da API com Firestore e Blob em memória, incluindo login obrigatório, CORS, upload com checagem de tipo, regras de leitura das fotos, incluindo propriedade da candidatura, reserva, retirada, encerramento de concorrentes, desistência e histórico de doações. Também testam validações e HMAC. Eles não substituem homologação com Authentication, regras do Firestore, Blob, OAuth, checkout e webhook publicados. Essa homologação depende da criação dos projetos e das credenciais do proprietário.
 
-As antigas rotas da demonstração redirecionam para a área conectada. Dados que existiam apenas em memória na demonstração não podem ser recuperados após recarregar. Se tiver usado a versão Firebase anterior, complete o cadastro para criar o perfil privado; animais antigos precisam ser recadastrados ou migrados para incluir situação, foto e vacinas. `testPayments` legado é somente leitura pelas regras; seus registros não são contados como dinheiro real.
+Não há compatibilidade com dados legados: o banco começa vazio e toda escrita passa pela API. Doações de teste (confirmadas sem dinheiro) só são aceitas enquanto `PAYMENTS_ENABLED` não for `true`; com pagamentos reais ligados, o servidor as recusa. Erros inesperados são registrados no log da Vercel e o app recebe apenas uma mensagem genérica.
 
 Antes do uso público, defina política de retenção/exclusão de fotos e dados pessoais, rotina para remover uploads abandonados, verificação das ONGs, limites de uso e App Check/rate limiting conforme sua operação. Os arquivos não são apagados automaticamente ao encerrar uma candidatura, pois compõem o histórico solicitado.
 
-Referências oficiais: [Expo ImagePicker SDK 58](https://docs.expo.dev/versions/v58.0.0/sdk/imagepicker/), [funções callable](https://firebase.google.com/docs/functions/callable), [Storage Rules](https://firebase.google.com/docs/storage/security).
+Referências oficiais: [Expo ImagePicker SDK 58](https://docs.expo.dev/versions/v58.0.0/sdk/imagepicker/), [Expo ImageManipulator SDK 58](https://docs.expo.dev/versions/v58.0.0/sdk/imagemanipulator/), [Vercel Functions](https://vercel.com/docs/functions), [Vercel Blob privado](https://vercel.com/docs/vercel-blob/private-storage), [verificar ID tokens](https://firebase.google.com/docs/auth/admin/verify-id-tokens).

@@ -6,14 +6,12 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "App.tsx",
-    "index.ts",
-    "functions/core.d.ts"
+    "backend/lib/core.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "functions/node_modules",
-    "functions/test"
+    "backend/node_modules",
+    "backend/test"
   ]
 }

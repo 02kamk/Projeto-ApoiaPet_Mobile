@@ -1,33 +1,40 @@
 import * as ImagePicker from 'expo-image-picker';
-import { getBytes, ref, uploadBytes } from 'firebase/storage';
-import { storage } from './firebase';
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { apiFetch } from './api';
 export type Photo = { uri: string; mime: string; size?: number };
+export type PhotoKind = 'pet' | 'avatar' | 'home';
+const MAX_SIDE = 1600;
+
 export async function pickPhoto(): Promise<Photo | null> {
-  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8, allowsEditing: false });
+  const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, allowsEditing: false });
   if (result.canceled) return null;
   const asset = result.assets[0];
-  const mime = asset.mimeType || (asset.uri.toLowerCase().includes('.png') ? 'image/png' : 'image/jpeg');
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw Error('Escolha JPG, PNG ou WebP.');
-  if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw Error('A foto deve ter no máximo 5 MB.');
-  return { uri: asset.uri, mime, size: asset.fileSize };
+  // Resize and re-encode as JPEG: keeps uploads well under the 4 MB server limit and strips metadata (e.g. GPS).
+  let context = ImageManipulator.manipulate(asset.uri);
+  if (asset.width > MAX_SIDE || asset.height > MAX_SIDE) context = context.resize(asset.width >= asset.height ? { width: MAX_SIDE, height: null } : { width: null, height: MAX_SIDE });
+  const image = await context.renderAsync();
+  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.8 });
+  return { uri: saved.uri, mime: 'image/jpeg' };
 }
+
 export function uniqueId() { return `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`; }
-export async function uploadPhoto(photo: Photo, folder: string) {
-  if (!storage) throw Error('O envio de fotos ainda não está disponível.');
+
+// The server picks the folder and file name; it returns the stored path.
+export async function uploadPhoto(photo: Photo, kind: PhotoKind, petId?: string) {
   const blob = await (await fetch(photo.uri)).blob();
-  if (blob.size > 5 * 1024 * 1024) throw Error('A foto deve ter no máximo 5 MB.');
-  const extension = photo.mime === 'image/png' ? 'png' : photo.mime === 'image/webp' ? 'webp' : 'jpg';
-  const path = `${folder}/${uniqueId()}.${extension}`;
-  await uploadBytes(ref(storage, path), blob, { contentType: photo.mime });
-  return path;
+  if (blob.size > 4 * 1024 * 1024) throw Error('A foto deve ter no máximo 4 MB.');
+  const query = new URLSearchParams({ kind, ...(petId ? { petId } : {}) });
+  const response = await apiFetch(`/api/upload?${query}`, { method: 'POST', headers: { 'Content-Type': photo.mime }, body: blob });
+  return (await response.json() as { path: string }).path;
 }
+
+// Photos are private: they are downloaded with the user's token and shown as a data URI.
 export async function photoUri(path: string) {
-  if (!storage) throw Error('Fotos indisponíveis.');
-  const bytes = await getBytes(ref(storage, path), 5 * 1024 * 1024);
-  const mime = path.endsWith('.png') ? 'image/png' : path.endsWith('.webp') ? 'image/webp' : 'image/jpeg';
+  const response = await apiFetch(`/api/photo?${new URLSearchParams({ path })}`);
+  const blob = await response.blob();
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result)); reader.onerror = reject;
-    reader.readAsDataURL(new Blob([bytes], { type: mime }));
+    reader.readAsDataURL(blob);
   });
 }

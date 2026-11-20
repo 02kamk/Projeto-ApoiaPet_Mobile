@@ -5,10 +5,10 @@ Status: integração implementada no código, **não ativada nem homologada**. N
 ## Configurar a aplicação
 
 1. Crie uma aplicação em Mercado Pago Developers, habilitada para Checkout Pro e autorização OAuth de contas recebedoras. Use contas de teste na homologação.
-2. Configure a URL OAuth exata: `https://southamerica-east1-SEU_PROJECT_ID.cloudfunctions.net/mercadoPagoCallback`. Habilite PKCE S256. O backend cria `state` de uso único com expiração de dez minutos e faz a troca de código no servidor.
-3. Em `functions/.env.SEU_PROJECT_ID`, informe `MP_CLIENT_ID`, `APP_URL` (domínio HTTPS do app), `BACKEND_URL` (base cloudfunctions.net, sem barra final) e `PAYMENTS_ENABLED=true` apenas no ambiente de homologação apropriado.
+2. Configure a URL OAuth exata: `https://SEU-PROJETO.vercel.app/api/mp-callback`. Habilite PKCE S256. O backend cria `state` de uso único com expiração de dez minutos e faz a troca de código no servidor.
+3. Nas variáveis de ambiente da Vercel, informe `MP_CLIENT_ID`, `MP_CLIENT_SECRET`, `APP_URL` (domínio HTTPS do app), `BACKEND_URL` (URL do projeto na Vercel, sem barra final) e `PAYMENTS_ENABLED=true` apenas no ambiente de homologação apropriado.
 4. Configure o segredo real com `firebase functions:secrets:set MP_CLIENT_SECRET --project SEU_PROJECT_ID`.
-5. Cadastre notificações de **pagamentos** e configure o segredo de assinatura: `firebase functions:secrets:set MP_WEBHOOK_SECRET --project SEU_PROJECT_ID`. A preferência aponta para `mercadoPagoWebhook?donationId=…`; preserve os parâmetros `data.id` enviados pelo provedor. O código usa a identificação do registro para localizar a conta recebedora e valida referência, moeda, valor e recebedor consultando a API do provedor.
+5. Cadastre notificações de **pagamentos** e configure o segredo de assinatura na variável `MP_WEBHOOK_SECRET` da Vercel. A preferência aponta para `/api/mp-webhook?donationId=…`; preserve os parâmetros `data.id` enviados pelo provedor. O código usa a identificação do registro para localizar a conta recebedora e valida referência, moeda, valor e recebedor consultando a API do provedor.
 6. Publique as funções novamente e coloque `EXPO_PUBLIC_PAYMENTS_ENABLED=true` no app de homologação. Reinicie/recompile o cliente após mudar essa variável.
 7. Entre no ApoiaPet como ONG e selecione **Conectar minha ONG ao Mercado Pago**. A ONG deve autorizar sua própria conta no provedor. O token fica numa coleção negada ao cliente; renovações passam pelo servidor.
 8. Entre como doador, escolha a ONG e **Mercado Pago · Pix / cartão**. O checkout hospedado coleta os dados de pagamento. O app não recebe número de cartão, CVV ou token privado. A disponibilidade de Pix e cartão depende da conta e do provedor.

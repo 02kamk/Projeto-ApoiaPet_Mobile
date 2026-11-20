@@ -1,18 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { EmailAuthProvider, User, createUserWithEmailAndPassword, onAuthStateChanged, reauthenticateWithCredential, sendPasswordResetEmail, signInWithEmailAndPassword, signOut, updatePassword } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { auth, db, errorMessage, functions } from './firebase';
-import { cep, cnpj, fullName, passwordRequirements, phone } from '../../functions/core';
-import type { OrgInfo } from '../../functions/core';
+import { auth, db, errorMessage } from './firebase';
+import { call } from './api';
+import { cep, cnpj, fullName, passwordRequirements, phone } from '../../backend/lib/core';
+import type { OrgInfo } from '../../backend/lib/core';
 export type Role = 'donor' | 'ong';
 export type Profile = { name: string; role: Role; city: string; state: string; cityCode: string; fullName: string; phone: string; cep: string; neighborhood: string; street: string; photoPath?: string; coverPath?: string; org?: Partial<OrgInfo> };
 export type ProfileInput = { role: Role; fullName: string; ongName: string; phone: string; cep: string; cnpj?: string; legalName?: string };
-export async function call<T = { ok: boolean }>(name: string, data: unknown): Promise<T> {
-  if (!functions) throw Error('O serviço ainda não está disponível.');
-  const response = await httpsCallable<unknown, T>(functions, name)(data);
-  return response.data;
-}
+export { call };
 function useSessionState() {
   const [user, setUser] = useState<User | null>(null);
   const [pub, setPub] = useState<Partial<Profile> | null>(null);

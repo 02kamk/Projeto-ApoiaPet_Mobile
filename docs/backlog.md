@@ -17,7 +17,7 @@
 - [ ] Firestore: perfis reutilizáveis, pets, candidaturas e histórico.
 - [ ] Regras testadas: isolamento por usuário, administração e notas privadas.
 - [ ] Transação de conclusão com concorrência e idempotência.
-- [ ] Firebase Storage para imagens e regras de acesso.
+- [x] Vercel Blob privado para imagens, com regras de acesso na API.
 
 ## Scrum
 

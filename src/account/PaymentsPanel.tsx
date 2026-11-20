@@ -4,7 +4,7 @@ import { call, useSession } from '../backend/session';
 import { currency, Donation, donationCounts, Organization, parseAmount, paymentStatus, useRecords, brasilia } from '../backend/data';
 import { uniqueId } from '../backend/photos';
 import { usingEmulators } from '../backend/firebase';
-import { Button, Card, colors, Segment, styles as s, themedStyles, useTheme } from '../ui';
+import { Button, Card, colors, styles as s, themedStyles, useTheme } from '../ui';
 import { Feedback, Input, Place, proximity, StoredPhoto, useAction } from './components';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { DonationRing } from './DonationRing';
@@ -25,7 +25,7 @@ export function PaymentsPanel({ history = false }: { history?: boolean }) {
   const [search, setSearch] = useState('');
   const [amount, setAmount] = useState(String(PRESETS[2]));
   const [customAmount, setCustomAmount] = useState(false);
-  const [mode, setMode] = useState<'test' | 'mercadopago'>(realPaymentsEnabled ? 'mercadopago' : 'test');
+  const mode = realPaymentsEnabled ? 'mercadopago' : 'test';
   const [requestId, setRequestId] = useState(uniqueId);
   const action = useAction();
   const home: Place = { city: profile!.city, state: profile!.state, cityCode: profile!.cityCode };
@@ -71,7 +71,6 @@ export function PaymentsPanel({ history = false }: { history?: boolean }) {
         <Pressable accessibilityRole="radio" accessibilityState={{ checked: customAmount, disabled: action.busy }} disabled={action.busy} onPress={() => changeAmount('', true)} style={[styles.amount, styles.amountWide, customAmount && styles.optionActive]}><Text style={[styles.amountText, customAmount && { color: colors.white }]}>Outro valor</Text></Pressable>
       </View>
       {customAmount && <Input label="Valor (R$)" placeholder={`Mínimo R$ ${MIN_REAIS}`} value={amount} onChange={value => changeAmount(value, true)} maxLength={8} />}
-      {realPaymentsEnabled && <Segment disabled={action.busy} options={['test', 'mercadopago']} labels={{ test: 'Teste', mercadopago: 'Pix / cartão' }} value={mode} onChange={value => { setMode(value as 'test' | 'mercadopago'); setRequestId(uniqueId()); }} />}
       {mode === 'test' && <Text style={s.muted}>Modo de teste: nada é cobrado.</Text>}
       <Button disabled={action.busy || !recipient} title={action.busy ? 'Preparando…' : 'Doar'} onPress={() => void action.run(async () => {
         const amountCents = parseAmount(amount);

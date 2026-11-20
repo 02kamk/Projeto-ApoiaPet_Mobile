@@ -1,0 +1,23 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "local"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBGp-0-x5Pa7waIDM4WxFN-VTwFN7wjv5w",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "apoiapet-app-87314.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "apoiapet-app-87314",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:628528713541:web:401af2566914efcf9ff82c",
+        "EXPO_PUBLIC_API_URL": "https://apoiapet-api.vercel.app",
+        "EXPO_PUBLIC_PAYMENTS_ENABLED": "false",
+        "EXPO_PUBLIC_USE_EMULATORS": "false"
+      }
+    }
+  }
+}

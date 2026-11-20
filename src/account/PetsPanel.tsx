@@ -11,7 +11,7 @@ import { Photo, pickPhoto, uploadPhoto } from '../backend/photos';
 import { PetInsights, StatusCounters, StatusFilter } from './PetInsights';
 import { OngPublicProfile } from './OngPublicProfile';
 import { Feedback, fetchPlace, Input, Place, proximity, StoredPhoto, useAction } from './components';
-import { testOptions, testResults } from '../../functions/health';
+import { testOptions, testResults } from '../../backend/lib/health';
 const groups = [
   { species: 'Cão', title: 'Cães' },
   { species: 'Gato', title: 'Gatos' },
@@ -241,7 +241,6 @@ function Info({ label, value }: { label: string; value: string }) {
   return <View style={{ gap: 2 }}><Text style={s.label}>{label}</Text><Text style={s.text}>{value}</Text></View>;
 }
 function ApplicationForm({ pet, onClose, onSent }: { pet: Listing; onClose: () => void; onSent: () => void }) {
-  const { user } = useSession();
   const [housing, setHousing] = useState('Casa');
   const [safety, setSafety] = useState('');
   const [routine, setRoutine] = useState('');
@@ -262,9 +261,8 @@ function ApplicationForm({ pet, onClose, onSent }: { pet: Listing; onClose: () =
     <Feedback message={action.message} />
     <Button disabled={action.busy} title={action.busy ? 'Enviando…' : 'Enviar candidatura'} onPress={() => void action.run(async () => {
       if (!consent || !photos.length || !safety.trim() || !routine.trim() || !motivation.trim()) throw Error('Preencha tudo, adicione fotos e autorize o compartilhamento.');
-      const id = `${pet.id}_${user!.uid}`;
       const photoPaths = [];
-      for (const photo of photos) photoPaths.push(await uploadPhoto(photo, `homes/${user!.uid}/${id}`));
+      for (const photo of photos) photoPaths.push(await uploadPhoto(photo, 'home', pet.id));
       await call('submitApplication', { petId: pet.id, housing, safety, routine, motivation, photoPaths, consent });
       onSent(); router.setParams({ tab: 'applications' });
     })} />

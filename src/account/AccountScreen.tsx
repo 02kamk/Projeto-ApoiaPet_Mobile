@@ -6,8 +6,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Button, colors, Screen, TabBar, ThemeProvider, themes, styles as s } from '../ui';
 import { firebaseConfigured } from '../backend/firebase';
+import { apiConfigured } from '../backend/api';
 import { Role, useSession, ProfileInput } from '../backend/session';
-import { cep, cnpj, passwordRequirements } from '../../functions/core';
+import { cep, cnpj, passwordRequirements } from '../../backend/lib/core';
 import { Feedback, Input, useAction } from './components';
 import { PetsPanel } from './PetsPanel';
 import { NotificationBell, NotificationsPanel, useNotifications } from './Notifications';
@@ -66,7 +67,7 @@ function AuthForm() {
   const title = completing ? 'Seu cadastro' : !registering ? 'Boas-vindas' : 'Criar conta';
   const back = completing ? undefined : registering && step === 2 ? () => { setStep(1); action.setMessage(''); } : () => { setWelcome(true); action.setMessage(''); };
   return <AuthLayout title={title} onBack={back}>
-    {!firebaseConfigured && <Text style={s.notice}>O serviço de contas ainda não foi ativado.</Text>}
+    {(!firebaseConfigured || !apiConfigured) && <Text style={s.notice}>O serviço de contas ainda não foi ativado.</Text>}
     {registering && !completing && <View style={styles.steps} accessibilityLabel={`Etapa ${step} de 2`}>{[1, 2].map(item => <View key={item} style={[styles.stepDot, item <= step && styles.stepDotActive]} />)}</View>}
     <View style={{ gap: 18 }}>
       {details && <>
