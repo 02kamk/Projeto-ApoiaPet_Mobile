@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db, errorMessage } from './firebase';
 import { Profile } from './session';
-import type { Health } from '../../functions/health';
+import type { Health } from '../../backend/lib/health';
 export { money as currency, parseAmount, donationCounts } from '../donations/domain';
 export type Listing = { id: string; ongId: string; ongName: string; name: string; species: string; age: string; description: string; city: string; state: string; cityCode: string; photoPath: string; vaccinesDone: string; vaccinesNeeded: string; health?: Health; status: 'available' | 'in_process' | 'adopted' | 'paused'; listed: boolean; createdAt?: string; updatedAt?: string; caretaker?: string };
 export type Organization = Profile & { id: string };

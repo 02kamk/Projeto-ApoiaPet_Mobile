@@ -101,7 +101,7 @@ function ApplicationDetails({ record }: { record: Application }) {
   return <>
     {ong && <><Text style={s.label}>{record.applicantName}</Text><Text selectable style={s.muted}>{record.phone} · {record.city} / {record.state}</Text></>}
     {Object.entries(record.answers).map(([key, value]) => <View key={key}><Text style={s.label}>{{ housing: 'Moradia', safety: 'Segurança', routine: 'Rotina', motivation: 'Motivação' }[key]}</Text><Text style={s.text}>{value}</Text></View>)}
-    <Text style={s.label}>Fotos do ambiente</Text>{record.photoPaths.map(path => <StoredPhoto key={path} path={path} label="Foto do ambiente onde o animal ficará" />)}
+    {record.photoPaths?.length > 0 && <Text style={s.label}>Fotos do ambiente</Text>}{(record.photoPaths || []).map(path => <StoredPhoto key={path} path={path} label="Foto do ambiente onde o animal ficará" />)}
     <Text style={s.label}>Histórico</Text><Timeline record={record} />
     {active && <>
       {(ong || record.status === 'needs_info') && <Input label="Mensagem" placeholder={ong ? 'Obrigatória para recusar ou pedir complemento' : 'Responda ao pedido da ONG'} value={note} onChange={setNote} multiline maxLength={2000} />}

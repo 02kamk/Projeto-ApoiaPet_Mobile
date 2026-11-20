@@ -33,9 +33,10 @@ yarn-error.*
 # local env files
 .env*.local
 .env
-functions/.env*
-!functions/.env.example
-functions/.secret.local
+backend/.env*
+!backend/.env.example
+.vercel/
+
 .local-tools/
 .firebase/
 .emulator-data/
@@ -51,3 +52,7 @@ firebase-debug.*.log
 
 # Local web verification bundle
 dist-donations/
+
+# Android builds
+*.apk
+*.aab

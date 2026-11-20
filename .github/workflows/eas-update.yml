@@ -1,0 +1,56 @@
+# Publishes an over-the-air update (EAS Update) for every push to main that changes the app.
+# Installed APKs from the "preview" profile download it the next time they are opened.
+# Requires the repository secret EXPO_TOKEN (expo.dev > Account settings > Access tokens).
+name: Atualização do app
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'backend/**'
+      - 'docs/**'
+      - 'web/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+concurrency:
+  group: eas-update
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Verificar EXPO_TOKEN
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "Crie o secret EXPO_TOKEN no repositório (https://expo.dev/settings/access-tokens)."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      # Same public EXPO_PUBLIC_* values the APK was built with (eas.json, profile "preview").
+      - name: Carregar configuração pública do app
+        run: node -e "const env = require('./eas.json').build.preview.env; for (const [k, v] of Object.entries(env)) console.log(k + '=' + v)" >> "$GITHUB_ENV"
+
+      - name: Publicar atualização
+        env:
+          MESSAGE: ${{ github.event.head_commit.message || 'Atualização manual' }}
+        run: eas update --channel preview --environment preview --platform android --message "$(echo "$MESSAGE" | head -n 1)" --non-interactive

@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Card, colors, styles as s, themedStyles, useTheme, useSharedSheet } from '../ui';
 import { call, useSession } from '../backend/session';
 import { pickPhoto, uploadPhoto } from '../backend/photos';
-import { passwordRequirements } from '../../functions/core';
+import { passwordRequirements } from '../../backend/lib/core';
 import { Feedback, Input, StoredPhoto, useAction } from './components';
 import { useDonorLevel } from './donationLevel';
 import { ImpactPanel, OrgCover, OrgForm, OrgInfoCard, OrgSubtitle, Receipts } from './OrgProfile';
@@ -46,7 +46,7 @@ export function ProfilePanel() {
         <Pressable accessibilityRole="button" accessibilityLabel={profile.photoPath ? 'Trocar foto de perfil' : 'Adicionar foto de perfil'} disabled={photo.busy} hitSlop={8} style={p.camera} onPress={() => void photo.run(async () => {
           const picked = await pickPhoto();
           if (!picked) return;
-          const path = await uploadPhoto(picked, `avatars/${user.uid}`);
+          const path = await uploadPhoto(picked, 'avatar');
           await call('setProfilePhoto', { photoPath: path });
         })}>{photo.busy ? <ActivityIndicator size="small" color={colors.white} /> : <MaterialCommunityIcons name="camera" size={18} color={colors.white} />}</Pressable>
       </View>

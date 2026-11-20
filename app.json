@@ -11,12 +11,13 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E4F3EA",
+        "backgroundColor": "#176B50",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "br.com.apoiapet"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,8 +31,39 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
+      ],
+      "expo-font",
+      "expo-status-bar",
+      "expo-image",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 180,
+          "resizeMode": "contain",
+          "backgroundColor": "#E4F3EA"
+        }
       ]
     ],
-    "scheme": "apoiapet"
+    "scheme": "apoiapet",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "d7dc9f27-1b2b-4293-a48c-bc11ea46fda9"
+      }
+    },
+    "owner": "apoia-pet",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d7dc9f27-1b2b-4293-a48c-bc11ea46fda9",
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }

@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { doc, onSnapshot } from 'firebase/firestore';
-import type { OrgInfo } from '../../functions/core';
-import { cnpj as validCnpj } from '../../functions/core';
+import type { OrgInfo } from '../../backend/lib/core';
+import { cnpj as validCnpj } from '../../backend/lib/core';
 import { db, usingEmulators } from '../backend/firebase';
 import { call, useSession } from '../backend/session';
 import { Application, currency, Donation, donationCounts, Listing, useRecords } from '../backend/data';
@@ -29,7 +29,7 @@ export function OrgCover() {
     <Pressable accessibilityRole="button" accessibilityLabel={profile?.coverPath ? 'Trocar foto de capa' : 'Adicionar foto de capa'} disabled={action.busy} hitSlop={8} style={st.coverButton} onPress={() => void action.run(async () => {
       const picked = await pickPhoto();
       if (!picked || !user) return;
-      const path = await uploadPhoto(picked, `avatars/${user.uid}`);
+      const path = await uploadPhoto(picked, 'avatar');
       await call('setProfilePhoto', { photoPath: path, kind: 'cover' });
     })}>{action.busy ? <ActivityIndicator size="small" color={colors.white} /> : <MaterialCommunityIcons name="camera" size={18} color={colors.white} />}</Pressable>
     {!!action.message && <Text style={st.coverError}>{action.message}</Text>}

@@ -11,7 +11,7 @@ import { Photo, pickPhoto, uploadPhoto } from '../backend/photos';
 import { PetInsights, StatusCounters, StatusFilter } from './PetInsights';
 import { OngPublicProfile } from './OngPublicProfile';
 import { Feedback, fetchPlace, Input, Place, proximity, StoredPhoto, useAction } from './components';
-import { testOptions, testResults } from '../../functions/health';
+import { testOptions, testResults } from '../../backend/lib/health';
 const groups = [
   { species: 'Cão', title: 'Cães' },
   { species: 'Gato', title: 'Gatos' },
@@ -34,7 +34,7 @@ export function PetsPanel() {
   const opened = visible.find(pet => pet.id === openId) || null;
   return <>
     {ong && <Button title="+ Cadastrar animal" onPress={() => router.push('/pet-form')} />}
-    {!ong && <LocationFilter place={place} home={home} scope={scope} onPlace={setPlace} onScope={setScope} />}
+    {!ong && <LocationFilter place={place} home={home} scope={scope} cities={citiesWithPets(pets.records, home)} onPlace={setPlace} onScope={setScope} />}
     <Feedback message={pets.error || action.message} />
     {pets.loading && <ActivityIndicator accessibilityLabel="Carregando animais" />}
     {!pets.loading && !pets.error && !visible.length && <View style={{ alignItems: 'center', paddingVertical: 24, gap: 4 }}>
@@ -63,8 +63,36 @@ export function PetsPanel() {
   </>;
 }
 type Scope = 'near' | 'city' | 'state';
+type CityCount = Place & { count: number };
+// Cidades que têm animais no catálogo: as do estado da pessoa primeiro, depois as com mais animais.
+function citiesWithPets(pets: Listing[], home: Place): CityCount[] {
+  const byCity = new Map<string, CityCount>();
+  for (const pet of pets) {
+    if (!pet.cityCode) continue;
+    const current = byCity.get(pet.cityCode);
+    if (current) current.count++;
+    else byCity.set(pet.cityCode, { city: pet.city, state: pet.state, cityCode: pet.cityCode, count: 1 });
+  }
+  return [...byCity.values()].sort((a, b) => proximity(a, home) - proximity(b, home) || b.count - a.count || a.city.localeCompare(b.city));
+}
 const nativeDriver = Platform.OS !== 'web';
-function LocationFilter({ place, home, scope, onPlace, onScope }: { place: Place; home: Place; scope: Scope; onPlace: (place: Place) => void; onScope: (scope: Scope) => void }) {
+function CityShortcuts({ cities, place, home, scope, onPlace, onScope }: { cities: CityCount[]; place: Place; home: Place; scope: Scope; onPlace: (place: Place) => void; onScope: (scope: Scope) => void }) {
+  const styles = useStylesSheet();
+  const theme = useTheme();
+  if (!cities.length) return null;
+  return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 2 }}>
+    {cities.map(item => {
+      const active = scope === 'city' && item.cityCode === place.cityCode;
+      return <Pressable key={item.cityCode} accessibilityRole="button" accessibilityState={{ selected: active }} accessibilityLabel={`Ver animais em ${item.city}, ${item.count} disponíveis`}
+        onPress={() => { if (active) { onPlace(home); onScope('near'); } else { onPlace(item); onScope('city'); } }}
+        style={[styles.cityChip, { backgroundColor: active ? theme.primary : theme.mint }]}>
+        <Text style={[styles.cityChipText, { color: active ? colors.white : theme.primary }]}>{item.city}</Text>
+        <Text style={[styles.cityChipCount, { color: active ? colors.white : theme.primary }]}>{item.count}</Text>
+      </Pressable>;
+    })}
+  </ScrollView>;
+}
+function LocationFilter({ place, home, scope, cities, onPlace, onScope }: { place: Place; home: Place; scope: Scope; cities: CityCount[]; onPlace: (place: Place) => void; onScope: (scope: Scope) => void }) {
   const styles = useStylesSheet();
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
@@ -92,6 +120,7 @@ function LocationFilter({ place, home, scope, onPlace, onScope }: { place: Place
       {!!error && <Text style={styles.error}>{error}</Text>}
       {custom && <LinkButton align="flex-start" title={`Usar meu endereço (${home.city})`} onPress={() => { onPlace(home); setEditing(false); }} />}
     </View>}
+    <CityShortcuts cities={cities} place={place} home={home} scope={scope} onPlace={onPlace} onScope={onScope} />
     <Segment compact options={['near', 'city', 'state']} labels={{ near: 'Mais próximos', city: 'Na cidade', state: 'No estado' }} value={scope} onChange={value => onScope(value as Scope)} />
   </View>;
 }
@@ -188,6 +217,13 @@ function Carousel({ title, pets, ong, near, onOpen, header, compact = false }: {
 }
 function GlassPhoto({ path, label, panel, panelStyle, children }: React.PropsWithChildren<{ path: string; label: string; panel: React.ReactNode; panelStyle: StyleProp<ViewStyle> }>) {
   const target = useRef<React.ComponentRef<typeof View>>(null);
+  // Android: a live blur per card is re-rendered every frame while the carousel animates, which
+  // made scrolling stutter on phones. A translucent panel looks close and costs nothing.
+  if (Platform.OS === 'android') return <>
+    <StoredPhoto path={path} label={label} style={StyleSheet.absoluteFill} />
+    {children}
+    <View style={[panelStyle, { backgroundColor: 'rgba(28, 28, 28, 0.55)' }]}>{panel}</View>
+  </>;
   return <>
     <BlurTargetView ref={target} style={StyleSheet.absoluteFill}>
       <StoredPhoto path={path} label={label} style={StyleSheet.absoluteFill} />
@@ -241,7 +277,6 @@ function Info({ label, value }: { label: string; value: string }) {
   return <View style={{ gap: 2 }}><Text style={s.label}>{label}</Text><Text style={s.text}>{value}</Text></View>;
 }
 function ApplicationForm({ pet, onClose, onSent }: { pet: Listing; onClose: () => void; onSent: () => void }) {
-  const { user } = useSession();
   const [housing, setHousing] = useState('Casa');
   const [safety, setSafety] = useState('');
   const [routine, setRoutine] = useState('');
@@ -255,16 +290,17 @@ function ApplicationForm({ pet, onClose, onSent }: { pet: Listing; onClose: () =
     <Input label={housing === 'Apartamento' ? 'Telas e proteções' : 'Segurança do ambiente'} placeholder={housing === 'Apartamento' ? 'Janelas, varanda, saídas' : 'Muros, portões, saídas'} value={safety} onChange={setSafety} multiline maxLength={2000} />
     <Input label="Rotina de cuidados" placeholder="Quem cuida e como" value={routine} onChange={setRoutine} multiline maxLength={2000} />
     <Input label="Por que adotar?" value={motivation} onChange={setMotivation} multiline maxLength={2000} />
-    <Text style={s.label}>Fotos do ambiente ({photos.length}/6)</Text>
+    <Text style={s.label}>Fotos do ambiente (opcional, {photos.length}/6)</Text>
+    <Text style={s.muted}>Ajudam a ONG a conhecer onde o animal vai morar. Ela também pode pedir pelo chat.</Text>
     {photos.map((photo, index) => <View key={`${photo.uri}-${index}`} style={{ gap: 4 }}><Image source={{ uri: photo.uri }} accessibilityLabel={`Foto do ambiente ${index + 1}`} style={{ width: '100%', height: 170, borderRadius: 16 }} /><LinkButton align="flex-end" disabled={action.busy} title="Remover" onPress={() => setPhotos(current => current.filter((_, i) => i !== index))} /></View>)}
     {photos.length < 6 && <Button disabled={action.busy} secondary title="+ Adicionar foto" onPress={() => void action.run(async () => { const photo = await pickPhoto(); if (photo) setPhotos(current => [...current, photo]); })} />}
     <View style={[s.row, { alignItems: 'center', flexWrap: 'nowrap' }]}><Switch accessibilityLabel="Autorizo compartilhar meus dados e fotos com esta ONG para análise da candidatura" value={consent} onValueChange={setConsent} /><Text style={[s.muted, { flex: 1 }]}>Autorizo compartilhar meus dados e fotos com a ONG.</Text></View>
     <Feedback message={action.message} />
     <Button disabled={action.busy} title={action.busy ? 'Enviando…' : 'Enviar candidatura'} onPress={() => void action.run(async () => {
-      if (!consent || !photos.length || !safety.trim() || !routine.trim() || !motivation.trim()) throw Error('Preencha tudo, adicione fotos e autorize o compartilhamento.');
-      const id = `${pet.id}_${user!.uid}`;
+      if (!safety.trim() || !routine.trim() || !motivation.trim()) throw Error('Responda todas as perguntas.');
+      if (!consent) throw Error('Autorize o compartilhamento dos seus dados com a ONG.');
       const photoPaths = [];
-      for (const photo of photos) photoPaths.push(await uploadPhoto(photo, `homes/${user!.uid}/${id}`));
+      for (const photo of photos) photoPaths.push(await uploadPhoto(photo, 'home', pet.id));
       await call('submitApplication', { petId: pet.id, housing, safety, routine, motivation, photoPaths, consent });
       onSent(); router.setParams({ tab: 'applications' });
     })} />
@@ -299,4 +335,7 @@ const useStylesSheet = themedStyles(t => StyleSheet.create({
   location: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.white, borderRadius: 20, paddingVertical: 12, paddingLeft: 12, paddingRight: 16, shadowColor: colors.dark, shadowOpacity: 0.06, shadowRadius: 10, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   locationIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: t.primary, alignItems: 'center', justifyContent: 'center' },
   error: { color: '#B3261E', fontWeight: '600', paddingLeft: 4 },
+  cityChip: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 34, paddingHorizontal: 14, borderRadius: 17 },
+  cityChipText: { fontSize: 13, fontWeight: '700' },
+  cityChipCount: { fontSize: 12, fontWeight: '600', opacity: 0.75 },
 }));
