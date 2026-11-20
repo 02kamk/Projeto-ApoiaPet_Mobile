@@ -101,9 +101,12 @@ export const submitApplication = async (uid, data) => {
   const petId = core.id(data.petId);
   const id = `${petId}_${uid}`;
   const answers = { housing: core.text(data.housing, 'Moradia', 500), safety: core.text(data.safety, 'Proteção de janelas e saídas', 2000), routine: core.text(data.routine, 'Rotina de cuidados', 2000), motivation: core.text(data.motivation, 'Motivação', 2000) };
-  if (data.consent !== true || !Array.isArray(data.photoPaths) || data.photoPaths.length < 1 || data.photoPaths.length > 6) throw new UserError('Adicione de 1 a 6 fotos do ambiente e autorize o compartilhamento com a ONG.');
-  if (new Set(data.photoPaths).size !== data.photoPaths.length) throw new UserError('Selecione fotos diferentes.');
-  await Promise.all(data.photoPaths.map(path => validatePhoto(path, `homes/${uid}/${id}/`)));
+  if (data.consent !== true) throw new UserError('Autorize o compartilhamento dos seus dados com a ONG.');
+  // Fotos do ambiente são opcionais (até 6).
+  const photoPaths = data.photoPaths ?? [];
+  if (!Array.isArray(photoPaths) || photoPaths.length > 6) throw new UserError('Adicione no máximo 6 fotos do ambiente.');
+  if (new Set(photoPaths).size !== photoPaths.length) throw new UserError('Selecione fotos diferentes.');
+  await Promise.all(photoPaths.map(path => validatePhoto(path, `homes/${uid}/${id}/`)));
   await db.runTransaction(async transaction => {
     const petRef = db.doc(`pets/${petId}`);
     const applicationRef = db.doc(`applications/${id}`);
@@ -114,7 +117,7 @@ export const submitApplication = async (uid, data) => {
     const now = new Date().toISOString();
     transaction.create(applicationRef, { petId, petName: pet.name, ongId: pet.ongId, ongName: pet.ongName, applicantId: uid,
       applicantName: profile.fullName, phone: profile.phone, city: profile.city, state: profile.state,
-      answers, photoPaths: data.photoPaths, consentAt: now, status: 'sent', createdAt: now, updatedAt: now, pickupAt: null, pickupPlace: '', history: [{ at: now, message: 'Candidatura enviada para análise humana.', actorId: uid }] });
+      answers, photoPaths, consentAt: now, status: 'sent', createdAt: now, updatedAt: now, pickupAt: null, pickupPlace: '', history: [{ at: now, message: 'Candidatura enviada para análise humana.', actorId: uid }] });
   });
   return { id };
 };

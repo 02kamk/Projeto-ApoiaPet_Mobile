@@ -89,7 +89,11 @@ test('candidatura pertence à ONG escolhida; retirada reserva, conclui e encerra
 });
 test('desistência libera animal; doação de teste é aprovada automaticamente', async () => {
   const pet = await invoke('savePet', 'ong-1', { name: 'Nino', species: 'Cão', age: '1 ano', description: 'Resgatado', health: { vaccinesDone: [], vaccinesNeeded: [], tests: [], notes: '' }, photoPath: 'pets/ong-1/nino.jpg' });
-  const application = await invoke('submitApplication', 'donor-1', { petId: pet.id, housing: 'Casa', safety: 'Muros e portões', routine: 'Cuidados', motivation: 'Acolher', consent: true, photoPaths: [`homes/donor-1/${pet.id}_donor-1/room.jpg`] });
+  const answers = { petId: pet.id, housing: 'Casa', safety: 'Muros e portões', routine: 'Cuidados', motivation: 'Acolher' };
+  await assert.rejects(invoke('submitApplication', 'donor-1', { ...answers, consent: false }), /Autorize/);
+  // Fotos do ambiente são opcionais.
+  const application = await invoke('submitApplication', 'donor-1', { ...answers, consent: true });
+  assert.deepEqual(records.get(`applications/${application.id}`).photoPaths, []);
   await invoke('changeApplication', 'ong-1', { id: application.id, action: 'approve' });
   await invoke('changeApplication', 'ong-1', { id: application.id, action: 'schedule', pickupAt: new Date(Date.now() + 86400000).toISOString(), pickupPlace: 'Abrigo' });
   await invoke('changeApplication', 'donor-1', { id: application.id, action: 'cancel' });
