@@ -8,6 +8,10 @@ const run = (command, env = {}) => execSync(command, { cwd: root, stdio: 'inheri
 fs.rmSync(dist, { recursive: true, force: true });
 run('npx expo export --platform web --output-dir dist');
 fs.copyFileSync(path.join(root, 'web/vercel.json'), path.join(dist, 'vercel.json'));
+// The Vercel CLI never uploads folders named node_modules, but Expo exports icon fonts to
+// assets/node_modules/. Move them; web/vercel.json rewrites the original URLs to the new folder.
+const vendored = path.join(dist, 'assets/node_modules');
+if (fs.existsSync(vendored)) fs.renameSync(vendored, path.join(dist, 'assets/vendor'));
 // Deploy only the static files: no `vercel link`, so no credentials are written into dist/.
 const { orgId, projectId } = JSON.parse(fs.readFileSync(path.join(root, 'web/project.json'), 'utf8'));
 run('npx -y vercel@latest deploy dist --prod --yes', { VERCEL_ORG_ID: orgId, VERCEL_PROJECT_ID: projectId });

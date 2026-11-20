@@ -40,6 +40,7 @@ Para instalar o APK, copie o arquivo para o celular Android e permita "instalar 
 ## Avisos
 
 - **Versão de testes.** A interface publicada (web e APK) ainda não passou por homologação completa. Os fluxos da API foram verificados por testes automatizados, mas use apenas dados fictícios.
+- **Dados de demonstração.** O banco tem 10 ONGs fictícias no sul de SC (Criciúma, Forquilhinha, Içara, Siderópolis, Nova Veneza, Urussanga, Araranguá e Tubarão) com 27 animais de exemplo. As fotos vêm do Wikimedia Commons; veja os [créditos](docs/creditos-fotos.md).
 - **Pagamentos desativados.** Doações reais pelo Mercado Pago ficam bloqueadas (`PAYMENTS_ENABLED=false`); só há doações de teste, sem cobrança.
 - **Chaves públicas no app.** A configuração web do Firebase em `eas.json` e `.env.example` é pública por natureza; a proteção vem das regras do Firestore e da API. Chaves privadas (conta de serviço do Firebase, token do Blob, segredos do Mercado Pago) ficam só nas variáveis de ambiente da Vercel e nunca devem ser commitadas.
 - **Pendências de segurança da conta:** revogar chaves de conta de serviço que tenham sido expostas e apagar cópias locais delas, ativar 2FA na Vercel e remover projetos vazios criados por engano no Google Cloud e na Expo.
